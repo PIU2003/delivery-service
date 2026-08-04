@@ -3,35 +3,234 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Parcel Delivery System</title>
-  <style>
-    :root {
-      --bg: #0f172a;
-      --fg: #e2e8f0;
-      --accent: #38bdf8;
-    }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      font-family: "Segoe UI", system-ui, sans-serif;
-      background: radial-gradient(circle at top, #1e293b, var(--bg));
-      color: var(--fg);
-    }
-    main { text-align: center; padding: 2rem; }
-    h1 { font-weight: 600; letter-spacing: 0.02em; }
-    p { opacity: 0.8; max-width: 36rem; }
-    code { color: var(--accent); }
-  </style>
+  <title>ParcelGO — Delivery Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
-  <main>
-    <h1>Parcel Delivery System</h1>
-    <p>
-      Client scaffold (Phase 5). API Gateway:
-      <code>http://localhost:8080</code>
-    </p>
-  </main>
+  <!-- Auth -->
+  <div id="auth-view">
+    <div class="auth-card">
+      <div class="brand">ParcelGO</div>
+      <p>Sign in to manage parcels, couriers, and deliveries via the API Gateway.</p>
+
+      <div class="auth-tabs">
+        <button type="button" id="tab-login" class="active">Login</button>
+        <button type="button" id="tab-register">Register</button>
+      </div>
+
+      <form id="auth-form">
+        <div class="field">
+          <label for="auth-username">Username</label>
+          <input id="auth-username" name="username" autocomplete="username" required minlength="3" />
+        </div>
+        <div class="field">
+          <label for="auth-password">Password</label>
+          <input id="auth-password" name="password" type="password" autocomplete="current-password" required minlength="6" />
+        </div>
+        <button type="submit" id="auth-submit" style="width:100%">Login</button>
+      </form>
+
+      <p class="hint">Demo user: <code>admin</code> / <code>password</code></p>
+    </div>
+  </div>
+
+  <!-- App -->
+  <div id="app-view" class="hidden">
+    <header class="topbar">
+      <div class="brand">ParcelGO</div>
+      <div class="user-meta">
+        <span>Signed in as <strong id="user-label"></strong></span>
+        <button type="button" class="secondary sm" id="logout-btn">Log out</button>
+      </div>
+    </header>
+
+    <nav class="nav-tabs" aria-label="Sections">
+      <button type="button" data-panel="parcels" class="active">Parcels</button>
+      <button type="button" data-panel="couriers">Couriers</button>
+      <button type="button" data-panel="deliveries">Deliveries</button>
+      <button type="button" data-panel="track">Track</button>
+    </nav>
+
+    <!-- Parcels -->
+    <section id="panel-parcels" class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>Parcels</h2>
+          <p>Create and list parcel bookings (Parcel Service via Gateway).</p>
+        </div>
+        <button type="button" class="secondary sm" id="refresh-parcels">Refresh</button>
+      </div>
+      <div class="grid-2">
+        <form id="parcel-form">
+          <h3>New parcel</h3>
+          <div class="form-row cols-2">
+            <div class="field">
+              <label for="p-sender">Sender name</label>
+              <input id="p-sender" required />
+            </div>
+            <div class="field">
+              <label for="p-receiver">Receiver name</label>
+              <input id="p-receiver" required />
+            </div>
+          </div>
+          <div class="field">
+            <label for="p-sender-addr">Sender address</label>
+            <input id="p-sender-addr" required />
+          </div>
+          <div class="field">
+            <label for="p-receiver-addr">Receiver address</label>
+            <input id="p-receiver-addr" required />
+          </div>
+          <div class="field">
+            <label for="p-weight">Weight (kg)</label>
+            <input id="p-weight" type="number" min="0.01" step="0.01" required />
+          </div>
+          <button type="submit">Create parcel</button>
+        </form>
+        <div>
+          <h3>All parcels</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>From → To</th>
+                  <th>Weight</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="parcels-tbody"></tbody>
+            </table>
+          </div>
+          <p id="parcels-empty" class="empty hidden">No parcels yet.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Couriers -->
+    <section id="panel-couriers" class="panel hidden">
+      <div class="panel-header">
+        <div>
+          <h2>Couriers</h2>
+          <p>Register couriers and toggle availability (Courier Service via Gateway).</p>
+        </div>
+        <button type="button" class="secondary sm" id="refresh-couriers">Refresh</button>
+      </div>
+      <div class="grid-2">
+        <form id="courier-form">
+          <h3>New courier</h3>
+          <div class="field">
+            <label for="c-name">Name</label>
+            <input id="c-name" required />
+          </div>
+          <div class="form-row cols-2">
+            <div class="field">
+              <label for="c-phone">Phone</label>
+              <input id="c-phone" required />
+            </div>
+            <div class="field">
+              <label for="c-vehicle">Vehicle type</label>
+              <input id="c-vehicle" placeholder="bike, van…" required />
+            </div>
+          </div>
+          <div class="field">
+            <label for="c-area">Current area</label>
+            <input id="c-area" required />
+          </div>
+          <button type="submit">Create courier</button>
+        </form>
+        <div>
+          <h3>All couriers</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Area</th>
+                  <th>Vehicle</th>
+                  <th>Available</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="couriers-tbody"></tbody>
+            </table>
+          </div>
+          <p id="couriers-empty" class="empty hidden">No couriers yet.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Deliveries -->
+    <section id="panel-deliveries" class="panel hidden">
+      <div class="panel-header">
+        <div>
+          <h2>Deliveries</h2>
+          <p>Assign a courier by area, then pickup and complete (Delivery Service).</p>
+        </div>
+        <button type="button" class="secondary sm" id="refresh-deliveries">Refresh</button>
+      </div>
+      <div class="grid-2">
+        <form id="assign-form">
+          <h3>Assign delivery</h3>
+          <div class="field">
+            <label for="d-parcel">Parcel ID</label>
+            <input id="d-parcel" type="number" min="1" required />
+          </div>
+          <div class="field">
+            <label for="d-area">Area</label>
+            <input id="d-area" required placeholder="Must match an available courier area" />
+          </div>
+          <button type="submit">Assign</button>
+        </form>
+        <div>
+          <h3>All deliveries</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Parcel</th>
+                  <th>Courier</th>
+                  <th>Area</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="deliveries-tbody"></tbody>
+            </table>
+          </div>
+          <p id="deliveries-empty" class="empty hidden">No deliveries yet.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Track -->
+    <section id="panel-track" class="panel hidden">
+      <div class="panel-header">
+        <div>
+          <h2>Track</h2>
+          <p>Look up delivery progress and parcel status by parcel ID.</p>
+        </div>
+      </div>
+      <form id="track-form" style="max-width:360px">
+        <div class="field">
+          <label for="t-parcel">Parcel ID</label>
+          <input id="t-parcel" type="number" min="1" required />
+        </div>
+        <button type="submit">Track</button>
+      </form>
+      <div id="track-result" class="track-result hidden"></div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
