@@ -1,108 +1,33 @@
-# Compiled class files
-*.class
-
-# Log files
-*.log
-logs/
-
-# Package files
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
-
-# Maven
+HELP.md
 target/
-pom.xml.tag
-pom.xml.releaseBackup
-pom.xml.versionsBackup
-pom.xml.next
-release.properties
-dependency-reduced-pom.xml
-buildNumber.properties
-.mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
 
-# Gradle
-.gradle/
-build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
-gradle-app.setting
-!gradle-wrapper.jar
-.gradletasknamecache
-
-# Spring Boot
-spring-boot-*.log
-application-local.properties
-application-local.yml
-application-*.local.properties
-application-*.local.yml
-
-# IDE - IntelliJ IDEA
-.idea/
-*.iws
-*.iml
-*.ipr
-out/
-
-# IDE - Eclipse
+### STS ###
 .apt_generated
 .classpath
 .factorypath
 .project
-.settings/
-.bin/
-.tmp/
-*.launch
+.settings
+.springBeans
+.sts4-cache
 
-# IDE - VS Code / Cursor
-.vscode/
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-*.code-workspace
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
 
-# IDE - NetBeans
+### NetBeans ###
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
 
-# OS
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-Desktop.ini
-
-# Environment / secrets
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-credentials.json
-secrets/
-
-# Test / coverage
-.nyc_output/
-coverage/
-*.exec
-hs_err_pid*
-replay_pid*
-
-# Temporary files
-*.tmp
-*.bak
-*.swp
-*~
+### VS Code ###
+.vscode/
