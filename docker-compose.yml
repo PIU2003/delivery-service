@@ -1,0 +1,214 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: parcel-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_USER: ${MYSQL_USER:-courier}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-courier}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql-init/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: parcel-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: parcel-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  parcel-service:
+    build: ./parcel-service
+    container_name: parcel-service
+    environment:
+      SERVER_PORT: 8081
+      API_KEY: ${PARCEL_API_KEY:-parcel-service-key}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER:-courier}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-courier}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "8081:8081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8081/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  courier-service:
+    build: ./courier-service
+    container_name: courier-service
+    environment:
+      SERVER_PORT: 8082
+      API_KEY: ${COURIER_API_KEY:-courier-service-key}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER:-courier}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-courier}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "8082:8082"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8082/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  delivery-service:
+    build: ./delivery-service
+    container_name: delivery-service
+    environment:
+      SERVER_PORT: 8083
+      API_KEY: ${DELIVERY_API_KEY:-delivery-service-key}
+      COURIER_API_KEY: ${COURIER_API_KEY:-courier-service-key}
+      COURIER_SERVICE_URL: http://courier-service:8082
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER:-courier}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-courier}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "8083:8083"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      courier-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8083/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+  auth-service:
+    build: ./auth-service
+    container_name: auth-service
+    environment:
+      SERVER_PORT: 8084
+      API_KEY: ${AUTH_API_KEY:-auth-service-key}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER:-courier}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-courier}
+    ports:
+      - "8084:8084"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8084/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  gateway:
+    build: ./gateway
+    container_name: gateway
+    environment:
+      SERVER_PORT: 8080
+      PARCEL_SERVICE_URL: http://parcel-service:8081
+      COURIER_SERVICE_URL: http://courier-service:8082
+      DELIVERY_SERVICE_URL: http://delivery-service:8083
+      AUTH_SERVICE_URL: http://auth-service:8084
+      PARCEL_API_KEY: ${PARCEL_API_KEY:-parcel-service-key}
+      COURIER_API_KEY: ${COURIER_API_KEY:-courier-service-key}
+      DELIVERY_API_KEY: ${DELIVERY_API_KEY:-delivery-service-key}
+      AUTH_API_KEY: ${AUTH_API_KEY:-auth-service-key}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "8080:8080"
+    depends_on:
+      parcel-service:
+        condition: service_healthy
+      courier-service:
+        condition: service_healthy
+      delivery-service:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  client:
+    build: ./client
+    container_name: client
+    ports:
+      - "3000:80"
+    depends_on:
+      gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  mysql_data:
+  rabbitmq_data:
+  redis_data:

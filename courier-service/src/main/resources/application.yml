@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: courier-service
+
+server:
+  port: ${SERVER_PORT:8082}
+
+app:
+  api-key: ${API_KEY:courier-service-key}
+  api-key-header: X-API-KEY
+  rabbitmq:
+    exchange: delivery.exchange
+    queue: courier.availability.queue
+    routing-keys:
+      assigned: parcel.assigned
+      delivered: parcel.delivered
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

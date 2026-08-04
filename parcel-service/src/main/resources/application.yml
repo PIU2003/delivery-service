@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: parcel-service
+
+server:
+  port: ${SERVER_PORT:8081}
+
+app:
+  api-key: ${API_KEY:parcel-service-key}
+  api-key-header: X-API-KEY
+  rabbitmq:
+    exchange: delivery.exchange
+    queue: parcel.status.queue
+    routing-keys:
+      assigned: parcel.assigned
+      pickedup: parcel.pickedup
+      delivered: parcel.delivered
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
