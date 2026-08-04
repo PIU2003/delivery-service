@@ -69,3 +69,7 @@ MySQL app user: `courier` / `courier` (see `mysql-init/init.sql`).
 - Client obtains JWT from Auth (`/auth/register`, `/auth/login`) via Gateway.
 - Gateway validates JWT on `/api/**`; `/auth/**` is public.
 - Client origin for CORS: `http://localhost:3000`
+- Shared HMAC JWT secret: env `JWT_SECRET` (must be identical on `auth-service` and `gateway`)
+- Default demo user: `admin` / `password` (seeded by auth-service)
+- Gateway injects `X-API-KEY` per route and strips any client-supplied value
+- Rate limiting: Redis-backed `RequestRateLimiter` per client IP

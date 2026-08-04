@@ -1,8 +1,18 @@
 spring:
   application:
     name: gateway
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
   cloud:
     gateway:
+      default-filters:
+        - name: RequestRateLimiter
+          args:
+            redis-rate-limiter.replenishRate: ${RATE_LIMIT_REPLENISH:20}
+            redis-rate-limiter.burstCapacity: ${RATE_LIMIT_BURST:40}
+            key-resolver: "#{@ipKeyResolver}"
       globalcors:
         cors-configurations:
           '[/**]':
@@ -38,9 +48,11 @@ spring:
 server:
   port: ${SERVER_PORT:8080}
 
-# API keys injected by gateway in Phase 4 (documented here for conventions)
 app:
   api-key-header: X-API-KEY
+  jwt:
+    secret: ${JWT_SECRET:change-me-parcel-delivery-jwt-secret-key-32b}
+    issuer: ${JWT_ISSUER:parcel-delivery-auth}
   downstream-keys:
     parcel: ${PARCEL_API_KEY:parcel-service-key}
     courier: ${COURIER_API_KEY:courier-service-key}
@@ -52,3 +64,6 @@ management:
     web:
       exposure:
         include: health,info
+  endpoint:
+    health:
+      show-details: never

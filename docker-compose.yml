@@ -143,6 +143,10 @@ services:
     environment:
       SERVER_PORT: 8084
       API_KEY: ${AUTH_API_KEY:-auth-service-key}
+      JWT_SECRET: ${JWT_SECRET:-change-me-parcel-delivery-jwt-secret-key-32b}
+      JWT_ISSUER: ${JWT_ISSUER:-parcel-delivery-auth}
+      AUTH_SEED_USERNAME: ${AUTH_SEED_USERNAME:-admin}
+      AUTH_SEED_PASSWORD: ${AUTH_SEED_PASSWORD:-password}
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       MYSQL_USER: ${MYSQL_USER:-courier}
@@ -172,8 +176,12 @@ services:
       COURIER_API_KEY: ${COURIER_API_KEY:-courier-service-key}
       DELIVERY_API_KEY: ${DELIVERY_API_KEY:-delivery-service-key}
       AUTH_API_KEY: ${AUTH_API_KEY:-auth-service-key}
+      JWT_SECRET: ${JWT_SECRET:-change-me-parcel-delivery-jwt-secret-key-32b}
+      JWT_ISSUER: ${JWT_ISSUER:-parcel-delivery-auth}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      RATE_LIMIT_REPLENISH: ${RATE_LIMIT_REPLENISH:-20}
+      RATE_LIMIT_BURST: ${RATE_LIMIT_BURST:-40}
     ports:
       - "8080:8080"
     depends_on:

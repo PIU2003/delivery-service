@@ -1,0 +1,20 @@
+spring:
+  cloud:
+    gateway:
+      default-filters: []
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+app:
+  api-key-header: X-API-KEY
+  jwt:
+    secret: test-jwt-secret-key-at-least-32-bytes-long
+    issuer: parcel-delivery-auth-test
+  downstream-keys:
+    parcel: test-parcel-key
+    courier: test-courier-key
+    delivery: test-delivery-key
+    auth: test-auth-key

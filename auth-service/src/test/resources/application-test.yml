@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:authdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+app:
+  api-key: test-auth-key
+  api-key-header: X-API-KEY
+  jwt:
+    secret: test-jwt-secret-key-at-least-32-bytes-long
+    issuer: parcel-delivery-auth-test
+    expiration-minutes: 30
+  seed:
+    username: admin
+    password: password
