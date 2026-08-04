@@ -73,3 +73,14 @@ MySQL app user: `courier` / `courier` (see `mysql-init/init.sql`).
 - Default demo user: `admin` / `password` (seeded by auth-service)
 - Gateway injects `X-API-KEY` per route and strips any client-supplied value
 - Rate limiting: Redis-backed `RequestRateLimiter` per client IP
+
+## Demo seed data
+
+Seeders run once when the target table is empty (idempotent on restart with existing data):
+
+| Service | Seed content |
+|---------|----------------|
+| Auth | user `admin` / `password` |
+| Parcel | 2 × `PENDING` parcels |
+| Courier | available couriers in `Colombo` (×2) and `Kandy` (×1) |
+| Delivery | none (created by assign flow) |
