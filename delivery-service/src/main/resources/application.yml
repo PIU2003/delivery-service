@@ -35,6 +35,12 @@ app:
     base-url: ${COURIER_SERVICE_URL:http://localhost:8082}
     api-key: ${COURIER_API_KEY:courier-service-key}
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
 management:
   endpoints:
     web:
