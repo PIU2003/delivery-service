@@ -36,13 +36,13 @@ public class DeliveryController {
 
 	@GetMapping("/track/{parcelId}")
 	@Operation(summary = "Track delivery by parcel id")
-	public DeliveryResponse track(@PathVariable Long parcelId) {
+	public DeliveryResponse track(@PathVariable String parcelId) {
 		return deliveryService.trackByParcelId(parcelId);
 	}
 
 	@GetMapping("/{id}")
 	@Operation(summary = "Get delivery by id")
-	public DeliveryResponse get(@PathVariable Long id) {
+	public DeliveryResponse get(@PathVariable String id) {
 		return deliveryService.findById(id);
 	}
 
@@ -55,13 +55,13 @@ public class DeliveryController {
 
 	@PutMapping("/{id}/pickup")
 	@Operation(summary = "Mark delivery as picked up and publish parcel.pickedup")
-	public DeliveryResponse pickup(@PathVariable Long id) {
+	public DeliveryResponse pickup(@PathVariable String id) {
 		return deliveryService.pickup(id);
 	}
 
 	@PutMapping("/{id}/complete")
 	@Operation(summary = "Mark delivery as delivered and publish parcel.delivered")
-	public DeliveryResponse complete(@PathVariable Long id) {
+	public DeliveryResponse complete(@PathVariable String id) {
 		return deliveryService.complete(id);
 	}
 }
