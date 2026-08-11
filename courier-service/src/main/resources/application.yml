@@ -1,17 +1,9 @@
 spring:
   application:
     name: courier-service
-  datasource:
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/courierdb
-    username: ${MYSQL_USER:courier}
-    password: ${MYSQL_PASSWORD:courier}
-  jpa:
-    hibernate:
-      ddl-auto: update
-    open-in-view: false
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
+  data:
+    mongodb:
+      uri: ${MONGO_URI:mongodb://localhost:27018/courierdb}
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
