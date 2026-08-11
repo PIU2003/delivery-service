@@ -32,6 +32,15 @@ public class CourierService {
 		return couriers.stream().map(this::toResponse).toList();
 	}
 
+	public List<CourierResponse> findByArea(String area) {
+		if (!StringUtils.hasText(area)) {
+			throw new IllegalArgumentException("Area path variable is required");
+		}
+		return courierRepository.findByCurrentAreaIgnoreCase(area.trim()).stream()
+				.map(this::toResponse)
+				.toList();
+	}
+
 	public CourierResponse create(CourierRequest request) {
 		Courier courier = Courier.builder()
 				.name(request.getName())
