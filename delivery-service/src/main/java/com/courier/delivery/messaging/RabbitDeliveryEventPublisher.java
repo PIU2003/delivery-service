@@ -31,20 +31,20 @@ public class RabbitDeliveryEventPublisher implements DeliveryEventPublisher {
 
 	@Override
 	public void publishAssigned(Delivery delivery) {
-		publish(assignedKey, delivery);
+		publish(assignedKey, delivery, "ASSIGN");
 	}
 
 	@Override
 	public void publishPickedUp(Delivery delivery) {
-		publish(pickedUpKey, delivery);
+		publish(pickedUpKey, delivery, "PICKUP");
 	}
 
 	@Override
 	public void publishDelivered(Delivery delivery) {
-		publish(deliveredKey, delivery);
+		publish(deliveredKey, delivery, "COMPLETE");
 	}
 
-	private void publish(String routingKey, Delivery delivery) {
+	private void publish(String routingKey, Delivery delivery, String phase) {
 		ParcelStatusEvent event = ParcelStatusEvent.builder()
 				.parcelId(delivery.getParcelId())
 				.courierId(delivery.getCourierId())
@@ -52,10 +52,15 @@ public class RabbitDeliveryEventPublisher implements DeliveryEventPublisher {
 				.build();
 		rabbitTemplate.convertAndSend(exchange, routingKey, event);
 		log.info(
-				"Published {} for deliveryId={} parcelId={} courierId={}",
+				"[Delivery Service] orchestration event phase={} routingKey={} exchange={} "
+						+ "deliveryId={} parcelId={} courierId={} area={} status={}",
+				phase,
 				routingKey,
+				exchange,
 				delivery.getId(),
 				delivery.getParcelId(),
-				delivery.getCourierId());
+				delivery.getCourierId(),
+				delivery.getArea(),
+				delivery.getStatus());
 	}
 }
