@@ -45,7 +45,7 @@ public class CourierController {
 
 	@GetMapping("/{id}")
 	@Operation(summary = "Get courier by id")
-	public CourierResponse get(@PathVariable Long id) {
+	public CourierResponse get(@PathVariable String id) {
 		return courierService.findById(id);
 	}
 
@@ -58,21 +58,21 @@ public class CourierController {
 
 	@PutMapping("/{id}")
 	@Operation(summary = "Update a courier")
-	public CourierResponse update(@PathVariable Long id, @Valid @RequestBody CourierRequest request) {
+	public CourierResponse update(@PathVariable String id, @Valid @RequestBody CourierRequest request) {
 		return courierService.update(id, request);
 	}
 
 	@PutMapping("/{id}/availability")
 	@Operation(summary = "Update courier availability")
 	public CourierResponse updateAvailability(
-			@PathVariable Long id, @Valid @RequestBody AvailabilityRequest request) {
+			@PathVariable String id, @Valid @RequestBody AvailabilityRequest request) {
 		return courierService.updateAvailability(id, request);
 	}
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@Operation(summary = "Delete a courier")
-	public void delete(@PathVariable Long id) {
+	public void delete(@PathVariable String id) {
 		courierService.delete(id);
 	}
 }

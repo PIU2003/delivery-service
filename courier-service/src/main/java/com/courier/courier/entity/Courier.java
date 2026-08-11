@@ -1,21 +1,16 @@
 package com.courier.courier.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-@Entity
-@Table(name = "couriers")
+@Document(collection = "couriers")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -24,34 +19,18 @@ import lombok.Setter;
 public class Courier {
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+	private String id;
 
-	@Column(nullable = false)
 	private String name;
 
-	@Column(nullable = false, length = 32)
 	private String phone;
 
-	@Column(nullable = false, length = 64)
 	private String vehicleType;
 
-	@Column(nullable = false, length = 128)
 	private String currentArea;
 
-	@Column(nullable = false)
 	private Boolean isAvailable;
 
-	@Column(nullable = false, updatable = false)
+	@CreatedDate
 	private Instant createdAt;
-
-	@PrePersist
-	void onCreate() {
-		if (createdAt == null) {
-			createdAt = Instant.now();
-		}
-		if (isAvailable == null) {
-			isAvailable = true;
-		}
-	}
 }

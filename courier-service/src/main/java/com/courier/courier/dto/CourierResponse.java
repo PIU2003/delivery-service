@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class CourierResponse {
 
-	private Long id;
+	private String id;
 	private String name;
 	private String phone;
 	private String vehicleType;
