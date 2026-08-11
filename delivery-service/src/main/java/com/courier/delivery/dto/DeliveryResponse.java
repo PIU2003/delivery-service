@@ -13,9 +13,9 @@ import lombok.NoArgsConstructor;
 @Builder
 public class DeliveryResponse {
 
-	private Long id;
-	private Long parcelId;
-	private Long courierId;
+	private String id;
+	private String parcelId;
+	private String courierId;
 	private String area;
 	private DeliveryStatus status;
 	private Instant assignedAt;
