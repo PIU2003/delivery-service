@@ -52,5 +52,14 @@ public class CourierAvailabilityListener {
 		}
 	}
 
-	
+	private Boolean mapRoutingKey(String routingKey) {
+		if (routingKey == null) {
+			return null;
+		}
+		return switch (routingKey) {
+			case "parcel.assigned" -> false;
+			case "parcel.delivered" -> true;
+			default -> null;
+		};
+	}
 }
