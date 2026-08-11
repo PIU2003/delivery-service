@@ -38,7 +38,7 @@ public class ParcelController {
 
 	@GetMapping("/{id}")
 	@Operation(summary = "Get parcel by id")
-	public ParcelResponse get(@PathVariable Long id) {
+	public ParcelResponse get(@PathVariable String id) {
 		return parcelService.findById(id);
 	}
 
@@ -51,20 +51,20 @@ public class ParcelController {
 
 	@PutMapping("/{id}")
 	@Operation(summary = "Update a parcel")
-	public ParcelResponse update(@PathVariable Long id, @Valid @RequestBody ParcelRequest request) {
+	public ParcelResponse update(@PathVariable String id, @Valid @RequestBody ParcelRequest request) {
 		return parcelService.update(id, request);
 	}
 
 	@GetMapping("/{id}/status")
 	@Operation(summary = "Get parcel status only")
-	public ParcelStatusResponse status(@PathVariable Long id) {
+	public ParcelStatusResponse status(@PathVariable String id) {
 		return parcelService.getStatus(id);
 	}
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	@Operation(summary = "Delete a parcel")
-	public void delete(@PathVariable Long id) {
+	public void delete(@PathVariable String id) {
 		parcelService.delete(id);
 	}
 }

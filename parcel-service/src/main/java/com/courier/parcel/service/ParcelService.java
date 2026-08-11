@@ -10,7 +10,6 @@ import com.courier.parcel.repository.ParcelRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -18,23 +17,19 @@ public class ParcelService {
 
 	private final ParcelRepository parcelRepository;
 
-	@Transactional(readOnly = true)
 	public List<ParcelResponse> findAll() {
 		return parcelRepository.findAll().stream().map(this::toResponse).toList();
 	}
 
-	@Transactional(readOnly = true)
-	public ParcelResponse findById(Long id) {
+	public ParcelResponse findById(String id) {
 		return toResponse(getParcel(id));
 	}
 
-	@Transactional(readOnly = true)
-	public ParcelStatusResponse getStatus(Long id) {
+	public ParcelStatusResponse getStatus(String id) {
 		Parcel parcel = getParcel(id);
 		return ParcelStatusResponse.builder().id(parcel.getId()).status(parcel.getStatus()).build();
 	}
 
-	@Transactional
 	public ParcelResponse create(ParcelRequest request) {
 		Parcel parcel = Parcel.builder()
 				.senderName(request.getSenderName())
@@ -47,8 +42,7 @@ public class ParcelService {
 		return toResponse(parcelRepository.save(parcel));
 	}
 
-	@Transactional
-	public ParcelResponse update(Long id, ParcelRequest request) {
+	public ParcelResponse update(String id, ParcelRequest request) {
 		Parcel parcel = getParcel(id);
 		parcel.setSenderName(request.getSenderName());
 		parcel.setSenderAddress(request.getSenderAddress());
@@ -61,23 +55,21 @@ public class ParcelService {
 		return toResponse(parcelRepository.save(parcel));
 	}
 
-	@Transactional
-	public void delete(Long id) {
+	public void delete(String id) {
 		if (!parcelRepository.existsById(id)) {
 			throw new ResourceNotFoundException("Parcel not found: " + id);
 		}
 		parcelRepository.deleteById(id);
 	}
 
-	@Transactional
-	public void applyStatusFromEvent(Long parcelId, ParcelStatus status) {
+	public void applyStatusFromEvent(String parcelId, ParcelStatus status) {
 		Parcel parcel = parcelRepository.findById(parcelId)
 				.orElseThrow(() -> new ResourceNotFoundException("Parcel not found for event: " + parcelId));
 		parcel.setStatus(status);
 		parcelRepository.save(parcel);
 	}
 
-	private Parcel getParcel(Long id) {
+	private Parcel getParcel(String id) {
 		return parcelRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Parcel not found: " + id));
 	}

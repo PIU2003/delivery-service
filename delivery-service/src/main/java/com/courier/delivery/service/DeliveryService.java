@@ -13,7 +13,6 @@ import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -26,18 +25,15 @@ public class DeliveryService {
 	private final CourierServiceClient courierServiceClient;
 	private final DeliveryEventPublisher eventPublisher;
 
-	@Transactional(readOnly = true)
 	public List<DeliveryResponse> findAll() {
 		return deliveryRepository.findAll().stream().map(this::toResponse).toList();
 	}
 
-	@Transactional(readOnly = true)
-	public DeliveryResponse findById(Long id) {
+	public DeliveryResponse findById(String id) {
 		return toResponse(getDelivery(id));
 	}
 
-	@Transactional(readOnly = true)
-	public DeliveryResponse trackByParcelId(Long parcelId) {
+	public DeliveryResponse trackByParcelId(String parcelId) {
 		List<Delivery> deliveries = deliveryRepository.findByParcelIdOrderByAssignedAtDesc(parcelId);
 		if (deliveries.isEmpty()) {
 			throw new ResourceNotFoundException("No delivery found for parcel: " + parcelId);
@@ -45,7 +41,6 @@ public class DeliveryService {
 		return toResponse(deliveries.getFirst());
 	}
 
-	@Transactional
 	public DeliveryResponse assign(AssignDeliveryRequest request) {
 		deliveryRepository
 				.findFirstByParcelIdAndStatusInOrderByAssignedAtDesc(request.getParcelId(), ACTIVE_STATUSES)
@@ -74,8 +69,7 @@ public class DeliveryService {
 		return toResponse(saved);
 	}
 
-	@Transactional
-	public DeliveryResponse pickup(Long id) {
+	public DeliveryResponse pickup(String id) {
 		Delivery delivery = getDelivery(id);
 		if (delivery.getStatus() != DeliveryStatus.ASSIGNED) {
 			throw new IllegalStateException(
@@ -88,8 +82,7 @@ public class DeliveryService {
 		return toResponse(saved);
 	}
 
-	@Transactional
-	public DeliveryResponse complete(Long id) {
+	public DeliveryResponse complete(String id) {
 		Delivery delivery = getDelivery(id);
 		if (delivery.getStatus() != DeliveryStatus.PICKED_UP) {
 			throw new IllegalStateException(
@@ -102,7 +95,7 @@ public class DeliveryService {
 		return toResponse(saved);
 	}
 
-	private Delivery getDelivery(Long id) {
+	private Delivery getDelivery(String id) {
 		return deliveryRepository
 				.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Delivery not found: " + id));

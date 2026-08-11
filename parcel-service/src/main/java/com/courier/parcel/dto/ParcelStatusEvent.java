@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class ParcelStatusEvent {
 
-	private Long parcelId;
-	private Long courierId;
-	private Long deliveryId;
+	private String parcelId;
+	private String courierId;
+	private String deliveryId;
 }

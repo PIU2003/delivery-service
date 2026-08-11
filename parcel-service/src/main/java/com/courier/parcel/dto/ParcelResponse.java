@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class ParcelResponse {
 
-	private Long id;
+	private String id;
 	private String senderName;
 	private String senderAddress;
 	private String receiverName;

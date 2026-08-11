@@ -18,7 +18,7 @@ public class TestBeansConfig {
 	@Primary
 	public CourierServiceClient stubCourierServiceClient() {
 		return area -> List.of(CourierDto.builder()
-				.id(1L)
+				.id("test-courier-id")
 				.name("Test Courier")
 				.phone("000")
 				.vehicleType("Bike")

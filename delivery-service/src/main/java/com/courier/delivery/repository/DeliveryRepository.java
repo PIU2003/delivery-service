@@ -4,12 +4,12 @@ import com.courier.delivery.entity.Delivery;
 import com.courier.delivery.entity.DeliveryStatus;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.mongodb.repository.MongoRepository;
 
-public interface DeliveryRepository extends JpaRepository<Delivery, Long> {
+public interface DeliveryRepository extends MongoRepository<Delivery, String> {
 
-	List<Delivery> findByParcelIdOrderByAssignedAtDesc(Long parcelId);
+	List<Delivery> findByParcelIdOrderByAssignedAtDesc(String parcelId);
 
 	Optional<Delivery> findFirstByParcelIdAndStatusInOrderByAssignedAtDesc(
-			Long parcelId, List<DeliveryStatus> statuses);
+			String parcelId, List<DeliveryStatus> statuses);
 }

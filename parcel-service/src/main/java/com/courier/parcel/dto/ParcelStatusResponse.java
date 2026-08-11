@@ -12,6 +12,6 @@ import lombok.NoArgsConstructor;
 @Builder
 public class ParcelStatusResponse {
 
-	private Long id;
+	private String id;
 	private ParcelStatus status;
 }
