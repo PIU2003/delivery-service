@@ -2,52 +2,117 @@
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => [...document.querySelectorAll(sel)];
 
+  const PANEL_TITLES = {
+    overview: "Overview",
+    parcels: "Parcels",
+    couriers: "Couriers",
+    dispatch: "Dispatch",
+    track: "Track",
+  };
+
+  const STATUS_ORDER = { ASSIGNED: 0, PICKED_UP: 1, DELIVERED: 2 };
+
   let authMode = "login";
   let toastTimer = null;
+  let useCustomArea = false;
+  let parcelMap = new Map();
+  let courierMap = new Map();
+  let cacheParcels = [];
+  let cacheCouriers = [];
+  let cacheDeliveries = [];
 
   function showToast(message, type = "") {
     const el = $("#toast");
     el.textContent = message;
     el.className = `toast show${type ? ` ${type}` : ""}`;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => {
-      el.classList.remove("show");
-    }, 3500);
+    toastTimer = setTimeout(() => el.classList.remove("show"), 3500);
   }
 
   function badge(status) {
     return `<span class="badge ${status || ""}">${status || "—"}</span>`;
   }
 
+  function shortId(id) {
+    if (!id) return "—";
+    const s = String(id);
+    return s.length <= 8 ? s : `…${s.slice(-4)}`;
+  }
+
+  function idChip(id) {
+    if (!id) return "—";
+    return `<span class="id-chip" title="${escapeHtml(id)}">
+      ${escapeHtml(shortId(id))}
+      <button type="button" data-copy="${escapeHtml(id)}" aria-label="Copy full id">Copy</button>
+    </span>`;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function fmtTime(iso) {
+    if (!iso) return "—";
+    try {
+      return new Date(iso).toLocaleString();
+    } catch {
+      return iso;
+    }
+  }
+
+  function parcelLabel(p) {
+    return `${p.senderName} → ${p.receiverName} · ${p.weight} kg`;
+  }
+
   function showAuth() {
     $("#auth-view").classList.remove("hidden");
     $("#app-view").classList.add("hidden");
+    closeDrawers();
   }
 
   function showApp() {
     $("#auth-view").classList.add("hidden");
     $("#app-view").classList.remove("hidden");
     $("#user-label").textContent = AuthStore.getUsername() || "user";
-    loadParcels();
+    switchPanel("overview");
   }
 
   function switchPanel(name) {
-    $$(".nav-tabs button").forEach((btn) => {
+    $$(".nav-side button").forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.panel === name);
     });
-    ["parcels", "couriers", "deliveries", "track"].forEach((id) => {
-      $(`#panel-${id}`).classList.toggle("hidden", id !== name);
+    ["overview", "parcels", "couriers", "dispatch", "track"].forEach((id) => {
+      const el = $(`#panel-${id}`);
+      if (!el) return;
+      const show = id === name;
+      el.classList.toggle("hidden", !show);
+      if (show) {
+        el.classList.remove("panel");
+        void el.offsetWidth;
+        el.classList.add("panel");
+      }
     });
+    $("#topbar-title").textContent = PANEL_TITLES[name] || name;
+
+    if (name === "overview") loadOverview();
     if (name === "parcels") loadParcels();
     if (name === "couriers") loadCouriers();
-    if (name === "deliveries") loadDeliveries();
+    if (name === "dispatch") loadDispatch();
+    if (name === "track") fillTrackSelect();
   }
 
   function setAuthMode(mode) {
     authMode = mode;
     $("#tab-login").classList.toggle("active", mode === "login");
     $("#tab-register").classList.toggle("active", mode === "register");
-    $("#auth-submit").textContent = mode === "login" ? "Login" : "Register";
+    $("#auth-submit").textContent = mode === "login" ? "Login" : "Create account";
+    $("#auth-heading").textContent = mode === "login" ? "Welcome back" : "Join the desk";
+    $("#auth-sub").textContent =
+      mode === "login" ? "Sign in to open the operations desk." : "Register a new operator account.";
     $("#auth-password").autocomplete = mode === "login" ? "current-password" : "new-password";
   }
 
@@ -78,33 +143,205 @@
     showToast("Logged out");
   }
 
-  // ——— Parcels ———
+  function handleApiError(err) {
+    if (err.status === 401) {
+      AuthStore.clear();
+      showAuth();
+      showToast("Session expired — please log in again", "error");
+      return;
+    }
+    showToast(err.message || "Request failed", "error");
+  }
+
+  function openDrawer(id) {
+    $("#drawer-backdrop").classList.add("open");
+    const drawer = $(id);
+    drawer.classList.add("open");
+    drawer.setAttribute("aria-hidden", "false");
+  }
+
+  function closeDrawers() {
+    $("#drawer-backdrop").classList.remove("open");
+    $$(".drawer").forEach((d) => {
+      d.classList.remove("open");
+      d.setAttribute("aria-hidden", "true");
+    });
+  }
+
+  function updateCaches(parcels, couriers, deliveries) {
+    if (parcels) {
+      cacheParcels = parcels;
+      parcelMap = new Map(parcels.map((p) => [p.id, p]));
+    }
+    if (couriers) {
+      cacheCouriers = couriers;
+      courierMap = new Map(couriers.map((c) => [c.id, c]));
+    }
+    if (deliveries) {
+      cacheDeliveries = deliveries;
+    }
+  }
+
+  function fillPendingParcelSelect(selectedId) {
+    const sel = $("#d-parcel");
+    const pending = cacheParcels.filter((p) => p.status === "PENDING");
+    const current = selectedId || sel.value;
+    sel.innerHTML = `<option value="">Select pending parcel…</option>`;
+    pending.forEach((p) => {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = parcelLabel(p);
+      sel.appendChild(opt);
+    });
+    if (current && [...sel.options].some((o) => o.value === current)) {
+      sel.value = current;
+    }
+  }
+
+  function fillAreaSelect() {
+    const sel = $("#d-area");
+    const areas = [
+      ...new Set(
+        cacheCouriers
+          .filter((c) => c.isAvailable)
+          .map((c) => c.currentArea)
+          .filter(Boolean)
+      ),
+    ].sort((a, b) => a.localeCompare(b));
+    const current = sel.value;
+    sel.innerHTML = `<option value="">Select area…</option>`;
+    areas.forEach((area) => {
+      const opt = document.createElement("option");
+      opt.value = area;
+      opt.textContent = area;
+      sel.appendChild(opt);
+    });
+    if (current && areas.includes(current)) sel.value = current;
+  }
+
+  async function fillTrackSelect(selectedId) {
+    const sel = $("#t-parcel");
+    const current = selectedId || sel.value;
+    if (!cacheParcels.length) {
+      try {
+        const parcels = await Api.listParcels();
+        updateCaches(parcels, null, null);
+      } catch (err) {
+        handleApiError(err);
+        return;
+      }
+    }
+    sel.innerHTML = `<option value="">Select parcel…</option>`;
+    cacheParcels.forEach((p) => {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = `${parcelLabel(p)} (${p.status})`;
+      sel.appendChild(opt);
+    });
+    if (current && [...sel.options].some((o) => o.value === current)) {
+      sel.value = current;
+    }
+  }
+
+  async function loadOverview() {
+    try {
+      const [parcels, couriers, deliveries] = await Promise.all([
+        Api.listParcels(),
+        Api.listCouriers(),
+        Api.listDeliveries(),
+      ]);
+      updateCaches(parcels, couriers, deliveries);
+
+      const pending = parcels.filter((p) => p.status === "PENDING");
+      const free = couriers.filter((c) => c.isAvailable);
+      const active = deliveries.filter((d) => d.status === "ASSIGNED" || d.status === "PICKED_UP");
+
+      $("#stat-parcels").textContent = String(parcels.length);
+      $("#stat-pending").textContent = String(pending.length);
+      $("#stat-couriers").textContent = String(free.length);
+      $("#stat-active").textContent = String(active.length);
+
+      const list = $("#attention-list");
+      const empty = $("#attention-empty");
+      list.innerHTML = "";
+      const items = [];
+
+      pending.slice(0, 5).forEach((p) => {
+        items.push({
+          text: `Pending: ${parcelLabel(p)}`,
+          action: () => goAssignParcel(p.id),
+          label: "Assign",
+        });
+      });
+      active.slice(0, 5).forEach((d) => {
+        const p = parcelMap.get(d.parcelId);
+        const name = p ? parcelLabel(p) : shortId(d.parcelId);
+        items.push({
+          text: `${d.status.replace("_", " ")}: ${name}`,
+          action: () => switchPanel("dispatch"),
+          label: "Open",
+        });
+      });
+
+      if (!items.length) {
+        empty.classList.remove("hidden");
+      } else {
+        empty.classList.add("hidden");
+        items.forEach((item) => {
+          const li = document.createElement("li");
+          li.innerHTML = `<span>${escapeHtml(item.text)}</span>`;
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "secondary sm";
+          btn.textContent = item.label;
+          btn.addEventListener("click", item.action);
+          li.appendChild(btn);
+          list.appendChild(li);
+        });
+      }
+    } catch (err) {
+      handleApiError(err);
+    }
+  }
+
   async function loadParcels() {
+    const loading = $("#parcels-loading");
+    const empty = $("#parcels-empty");
+    const tbody = $("#parcels-tbody");
+    loading.classList.remove("hidden");
+    empty.classList.add("hidden");
     try {
       const parcels = await Api.listParcels();
-      const tbody = $("#parcels-tbody");
-      const empty = $("#parcels-empty");
+      updateCaches(parcels, null, null);
       tbody.innerHTML = "";
-      if (!parcels || parcels.length === 0) {
+      if (!parcels.length) {
         empty.classList.remove("hidden");
         return;
       }
-      empty.classList.add("hidden");
       parcels.forEach((p) => {
         const tr = document.createElement("tr");
+        const assignBtn =
+          p.status === "PENDING"
+            ? `<button type="button" class="sm" data-assign-parcel="${p.id}">Assign</button>`
+            : `<button type="button" class="ghost sm" data-track-parcel="${p.id}">Track</button>`;
         tr.innerHTML = `
-          <td>${p.id}</td>
-          <td>${escapeHtml(p.senderName)} → ${escapeHtml(p.receiverName)}</td>
-          <td>${p.weight}</td>
+          <td>${idChip(p.id)}</td>
+          <td>
+            <strong>${escapeHtml(p.senderName)} → ${escapeHtml(p.receiverName)}</strong><br />
+            <span style="color:var(--muted);font-size:0.85rem">${escapeHtml(p.senderAddress)} → ${escapeHtml(p.receiverAddress)}</span>
+          </td>
+          <td>${p.weight} kg</td>
           <td>${badge(p.status)}</td>
           <td class="actions">
-            <button type="button" class="ghost sm" data-status="${p.id}">Status</button>
+            ${assignBtn}
             <button type="button" class="danger sm" data-del-parcel="${p.id}">Delete</button>
           </td>`;
         tbody.appendChild(tr);
       });
     } catch (err) {
       handleApiError(err);
+    } finally {
+      loading.classList.add("hidden");
     }
   }
 
@@ -118,46 +355,56 @@
       weight: Number($("#p-weight").value),
     };
     try {
-      const created = await Api.createParcel(body);
-      showToast(`Parcel #${created.id} created`, "success");
+      await Api.createParcel(body);
+      showToast("Parcel created", "success");
       event.target.reset();
+      closeDrawers();
       await loadParcels();
+      fillPendingParcelSelect();
     } catch (err) {
       handleApiError(err);
     }
   }
 
-  // ——— Couriers ———
   async function loadCouriers() {
+    const loading = $("#couriers-loading");
+    const empty = $("#couriers-empty");
+    const tbody = $("#couriers-tbody");
+    loading.classList.remove("hidden");
+    empty.classList.add("hidden");
     try {
       const couriers = await Api.listCouriers();
-      const tbody = $("#couriers-tbody");
-      const empty = $("#couriers-empty");
+      updateCaches(null, couriers, null);
       tbody.innerHTML = "";
-      if (!couriers || couriers.length === 0) {
+      if (!couriers.length) {
         empty.classList.remove("hidden");
         return;
       }
-      empty.classList.add("hidden");
       couriers.forEach((c) => {
         const avail = Boolean(c.isAvailable);
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${c.id}</td>
-          <td>${escapeHtml(c.name)}</td>
+          <td>${idChip(c.id)}</td>
+          <td>
+            <strong>${escapeHtml(c.name)}</strong><br />
+            <span style="color:var(--muted);font-size:0.85rem">${escapeHtml(c.phone)}</span>
+          </td>
           <td>${escapeHtml(c.currentArea)}</td>
           <td>${escapeHtml(c.vehicleType)}</td>
-          <td><span class="badge avail-${avail}">${avail ? "Yes" : "No"}</span></td>
+          <td><span class="badge avail-${avail}">${avail ? "Available" : "Busy"}</span></td>
           <td class="actions">
             <button type="button" class="secondary sm" data-avail="${c.id}" data-next="${!avail}">
-              Set ${avail ? "unavailable" : "available"}
+              Mark ${avail ? "busy" : "available"}
             </button>
             <button type="button" class="danger sm" data-del-courier="${c.id}">Delete</button>
           </td>`;
         tbody.appendChild(tr);
       });
+      fillAreaSelect();
     } catch (err) {
       handleApiError(err);
+    } finally {
+      loading.classList.add("hidden");
     }
   }
 
@@ -168,41 +415,72 @@
       phone: $("#c-phone").value.trim(),
       vehicleType: $("#c-vehicle").value.trim(),
       currentArea: $("#c-area").value.trim(),
+      isAvailable: true,
     };
     try {
-      const created = await Api.createCourier(body);
-      showToast(`Courier #${created.id} created`, "success");
+      await Api.createCourier(body);
+      showToast("Courier added", "success");
       event.target.reset();
+      closeDrawers();
       await loadCouriers();
     } catch (err) {
       handleApiError(err);
     }
   }
 
-  // ——— Deliveries ———
-  async function loadDeliveries() {
+  async function loadDispatch() {
+    const loading = $("#deliveries-loading");
+    const empty = $("#deliveries-empty");
+    const tbody = $("#deliveries-tbody");
+    loading.classList.remove("hidden");
+    empty.classList.add("hidden");
     try {
-      const deliveries = await Api.listDeliveries();
-      const tbody = $("#deliveries-tbody");
-      const empty = $("#deliveries-empty");
+      const [parcels, couriers, deliveries] = await Promise.all([
+        Api.listParcels(),
+        Api.listCouriers(),
+        Api.listDeliveries(),
+      ]);
+      updateCaches(parcels, couriers, deliveries);
+      fillPendingParcelSelect();
+      fillAreaSelect();
+
+      const sorted = [...deliveries].sort((a, b) => {
+        const oa = STATUS_ORDER[a.status] ?? 9;
+        const ob = STATUS_ORDER[b.status] ?? 9;
+        if (oa !== ob) return oa - ob;
+        return String(b.assignedAt || "").localeCompare(String(a.assignedAt || ""));
+      });
+
       tbody.innerHTML = "";
-      if (!deliveries || deliveries.length === 0) {
+      if (!sorted.length) {
         empty.classList.remove("hidden");
         return;
       }
-      empty.classList.add("hidden");
-      deliveries.forEach((d) => {
-        const tr = document.createElement("tr");
+
+      sorted.forEach((d) => {
+        const p = parcelMap.get(d.parcelId);
+        const c = courierMap.get(d.courierId);
+        const parcelCell = p
+          ? `<strong>${escapeHtml(p.senderName)} → ${escapeHtml(p.receiverName)}</strong><br />${idChip(d.parcelId)}`
+          : idChip(d.parcelId);
+        const courierCell = c
+          ? `<strong>${escapeHtml(c.name)}</strong><br />${idChip(d.courierId)}`
+          : idChip(d.courierId);
+
         let actions = "";
         if (d.status === "ASSIGNED") {
           actions = `<button type="button" class="sm" data-pickup="${d.id}">Pickup</button>`;
         } else if (d.status === "PICKED_UP") {
           actions = `<button type="button" class="sm" data-complete="${d.id}">Complete</button>`;
+        } else {
+          actions = `<button type="button" class="ghost sm" data-track-parcel="${d.parcelId}">Track</button>`;
         }
+
+        const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${d.id}</td>
-          <td>${d.parcelId}</td>
-          <td>${d.courierId}</td>
+          <td>${idChip(d.id)}</td>
+          <td>${parcelCell}</td>
+          <td>${courierCell}</td>
           <td>${escapeHtml(d.area)}</td>
           <td>${badge(d.status)}</td>
           <td class="actions">${actions}</td>`;
@@ -210,116 +488,167 @@
       });
     } catch (err) {
       handleApiError(err);
+    } finally {
+      loading.classList.add("hidden");
     }
+  }
+
+  function goAssignParcel(parcelId) {
+    switchPanel("dispatch");
+    setTimeout(() => {
+      fillPendingParcelSelect(parcelId);
+      const sel = $("#d-parcel");
+      if (![...sel.options].some((o) => o.value === parcelId)) {
+        const p = parcelMap.get(parcelId);
+        if (p) {
+          const opt = document.createElement("option");
+          opt.value = p.id;
+          opt.textContent = `${parcelLabel(p)} (${p.status})`;
+          sel.appendChild(opt);
+        }
+      }
+      sel.value = parcelId;
+    }, 50);
   }
 
   async function assignDelivery(event) {
     event.preventDefault();
     const parcelId = $("#d-parcel").value.trim();
-    const area = $("#d-area").value.trim();
+    let area = useCustomArea
+      ? $("#d-area-custom").value.trim()
+      : $("#d-area").value.trim();
+    if (!parcelId || !area) {
+      showToast("Choose a parcel and area", "error");
+      return;
+    }
     try {
       const created = await Api.assignDelivery(parcelId, area);
-      showToast(`Delivery #${created.id} assigned to courier #${created.courierId}`, "success");
-      event.target.reset();
-      await loadDeliveries();
+      showToast(`Assigned run ${shortId(created.id)}`, "success");
+      $("#assign-form").reset();
+      useCustomArea = false;
+      syncAreaMode();
+      await loadDispatch();
     } catch (err) {
       handleApiError(err);
     }
   }
 
-  // ——— Track ———
   async function trackParcel(event) {
     event.preventDefault();
     const parcelId = $("#t-parcel").value.trim();
+    if (!parcelId) return;
     const box = $("#track-result");
     try {
-      const [delivery, parcelStatus] = await Promise.all([
+      const [delivery, parcelStatus, parcel] = await Promise.all([
         Api.trackDelivery(parcelId).catch((e) => ({ error: e.message })),
         Api.getParcelStatus(parcelId).catch((e) => ({ error: e.message })),
+        Api.getParcel(parcelId).catch(() => parcelMap.get(parcelId) || null),
       ]);
 
-      let html = `<h3>Parcel #${parcelId}</h3><dl>`;
-      if (parcelStatus.error) {
-        html += `<dt>Parcel status</dt><dd>${escapeHtml(parcelStatus.error)}</dd>`;
-      } else {
-        html += `<dt>Parcel status</dt><dd>${badge(parcelStatus.status)}</dd>`;
-      }
-      if (delivery.error) {
-        html += `<dt>Delivery</dt><dd>${escapeHtml(delivery.error)}</dd>`;
-      } else {
-        html += `
-          <dt>Delivery ID</dt><dd>${delivery.id}</dd>
-          <dt>Courier ID</dt><dd>${delivery.courierId}</dd>
-          <dt>Area</dt><dd>${escapeHtml(delivery.area)}</dd>
-          <dt>Delivery status</dt><dd>${badge(delivery.status)}</dd>
-          <dt>Assigned</dt><dd>${fmtTime(delivery.assignedAt)}</dd>
-          <dt>Picked up</dt><dd>${fmtTime(delivery.pickedUpAt)}</dd>
-          <dt>Delivered</dt><dd>${fmtTime(delivery.deliveredAt)}</dd>`;
-      }
-      html += "</dl>";
-      box.innerHTML = html;
+      const status = parcelStatus.status || (parcel && parcel.status) || null;
+      const steps = [
+        { key: "PENDING", title: "Booked", meta: "Parcel created" },
+        { key: "ASSIGNED", title: "Assigned", meta: delivery.assignedAt ? fmtTime(delivery.assignedAt) : "Waiting" },
+        { key: "IN_TRANSIT", title: "In transit", meta: delivery.pickedUpAt ? fmtTime(delivery.pickedUpAt) : "Waiting" },
+        { key: "DELIVERED", title: "Delivered", meta: delivery.deliveredAt ? fmtTime(delivery.deliveredAt) : "Waiting" },
+      ];
+
+      const order = ["PENDING", "ASSIGNED", "IN_TRANSIT", "DELIVERED"];
+      let currentIdx = order.indexOf(status);
+      if (status === "PICKED_UP") currentIdx = order.indexOf("IN_TRANSIT");
+
+      const timeline = steps
+        .map((step, idx) => {
+          let cls = "";
+          if (currentIdx > idx) cls = "done";
+          if (currentIdx === idx) cls = "current done";
+          return `<li class="${cls}"><div class="step-title">${step.title}</div><div class="step-meta">${escapeHtml(step.meta)}</div></li>`;
+        })
+        .join("");
+
+      const courier = delivery.courierId ? courierMap.get(delivery.courierId) : null;
+      const route =
+        parcel && parcel.senderName
+          ? `${escapeHtml(parcel.senderName)} → ${escapeHtml(parcel.receiverName)}`
+          : idChip(parcelId);
+
+      box.innerHTML = `
+        <h3 style="margin-bottom:0.75rem">Tracking</h3>
+        <dl class="track-summary">
+          <dt>Parcel</dt><dd>${route}</dd>
+          <dt>Parcel status</dt><dd>${parcelStatus.error ? escapeHtml(parcelStatus.error) : badge(status)}</dd>
+          <dt>Delivery</dt><dd>${
+            delivery.error
+              ? escapeHtml(delivery.error)
+              : `${badge(delivery.status)} · area ${escapeHtml(delivery.area || "—")}`
+          }</dd>
+          <dt>Courier</dt><dd>${
+            delivery.error
+              ? "—"
+              : courier
+                ? escapeHtml(courier.name)
+                : idChip(delivery.courierId)
+          }</dd>
+        </dl>
+        <ul class="timeline">${timeline}</ul>`;
       box.classList.remove("hidden");
     } catch (err) {
       handleApiError(err);
     }
   }
 
-  function fmtTime(iso) {
-    if (!iso) return "—";
-    try {
-      return new Date(iso).toLocaleString();
-    } catch {
-      return iso;
-    }
+  function syncAreaMode() {
+    $("#d-area-custom-wrap").classList.toggle("hidden", !useCustomArea);
+    $("#d-area").disabled = useCustomArea;
+    $("#d-area").required = !useCustomArea;
+    $("#d-area-custom").required = useCustomArea;
+    $("#toggle-area-custom").textContent = useCustomArea ? "Use area list" : "Use custom area";
   }
 
-  function escapeHtml(value) {
-    return String(value ?? "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-  }
-
-  function handleApiError(err) {
-    if (err.status === 401) {
-      AuthStore.clear();
-      showAuth();
-      showToast("Session expired — please log in again", "error");
-      return;
-    }
-    showToast(err.message || "Request failed", "error");
-  }
-
-  // ——— Event wiring ———
   function bindEvents() {
     $("#tab-login").addEventListener("click", () => setAuthMode("login"));
     $("#tab-register").addEventListener("click", () => setAuthMode("register"));
     $("#auth-form").addEventListener("submit", handleAuth);
     $("#logout-btn").addEventListener("click", logout);
 
-    $$(".nav-tabs button").forEach((btn) => {
+    $$(".nav-side button").forEach((btn) => {
       btn.addEventListener("click", () => switchPanel(btn.dataset.panel));
     });
+
+    $("#refresh-overview").addEventListener("click", loadOverview);
+    $("#goto-dispatch").addEventListener("click", () => switchPanel("dispatch"));
+
+    $("#open-parcel-drawer").addEventListener("click", () => openDrawer("#parcel-drawer"));
+    $("#open-courier-drawer").addEventListener("click", () => openDrawer("#courier-drawer"));
+    $("#drawer-backdrop").addEventListener("click", closeDrawers);
+    $$("[data-close-drawer]").forEach((btn) => btn.addEventListener("click", closeDrawers));
 
     $("#parcel-form").addEventListener("submit", createParcel);
     $("#refresh-parcels").addEventListener("click", loadParcels);
     $("#parcels-tbody").addEventListener("click", async (e) => {
-      const statusId = e.target.dataset.status;
-      const delId = e.target.dataset.delParcel;
-      if (statusId) {
-        try {
-          const s = await Api.getParcelStatus(statusId);
-          showToast(`Parcel #${s.id}: ${s.status}`);
-        } catch (err) {
-          handleApiError(err);
-        }
+      const t = e.target;
+      if (t.dataset.copy) {
+        await navigator.clipboard.writeText(t.dataset.copy);
+        showToast("ID copied", "success");
+        return;
       }
-      if (delId) {
-        if (!confirm(`Delete parcel #${delId}?`)) return;
+      if (t.dataset.assignParcel) {
+        goAssignParcel(t.dataset.assignParcel);
+        return;
+      }
+      if (t.dataset.trackParcel) {
+        switchPanel("track");
+        setTimeout(() => {
+          fillTrackSelect(t.dataset.trackParcel);
+          $("#t-parcel").value = t.dataset.trackParcel;
+        }, 50);
+        return;
+      }
+      if (t.dataset.delParcel) {
+        if (!confirm("Delete this parcel?")) return;
         try {
-          await Api.deleteParcel(delId);
-          showToast(`Parcel #${delId} deleted`, "success");
+          await Api.deleteParcel(t.dataset.delParcel);
+          showToast("Parcel deleted", "success");
           await loadParcels();
         } catch (err) {
           handleApiError(err);
@@ -330,23 +659,27 @@
     $("#courier-form").addEventListener("submit", createCourier);
     $("#refresh-couriers").addEventListener("click", loadCouriers);
     $("#couriers-tbody").addEventListener("click", async (e) => {
-      const availId = e.target.dataset.avail;
-      const delId = e.target.dataset.delCourier;
-      if (availId) {
-        const next = e.target.dataset.next === "true";
+      const t = e.target;
+      if (t.dataset.copy) {
+        await navigator.clipboard.writeText(t.dataset.copy);
+        showToast("ID copied", "success");
+        return;
+      }
+      if (t.dataset.avail) {
+        const next = t.dataset.next === "true";
         try {
-          await Api.setAvailability(availId, next);
-          showToast(`Courier #${availId} availability → ${next}`, "success");
+          await Api.setAvailability(t.dataset.avail, next);
+          showToast(next ? "Courier available" : "Courier marked busy", "success");
           await loadCouriers();
         } catch (err) {
           handleApiError(err);
         }
       }
-      if (delId) {
-        if (!confirm(`Delete courier #${delId}?`)) return;
+      if (t.dataset.delCourier) {
+        if (!confirm("Delete this courier?")) return;
         try {
-          await Api.deleteCourier(delId);
-          showToast(`Courier #${delId} deleted`, "success");
+          await Api.deleteCourier(t.dataset.delCourier);
+          showToast("Courier deleted", "success");
           await loadCouriers();
         } catch (err) {
           handleApiError(err);
@@ -355,31 +688,48 @@
     });
 
     $("#assign-form").addEventListener("submit", assignDelivery);
-    $("#refresh-deliveries").addEventListener("click", loadDeliveries);
+    $("#refresh-deliveries").addEventListener("click", loadDispatch);
+    $("#toggle-area-custom").addEventListener("click", () => {
+      useCustomArea = !useCustomArea;
+      syncAreaMode();
+    });
     $("#deliveries-tbody").addEventListener("click", async (e) => {
-      const pickupId = e.target.dataset.pickup;
-      const completeId = e.target.dataset.complete;
-      if (pickupId) {
+      const t = e.target;
+      if (t.dataset.copy) {
+        await navigator.clipboard.writeText(t.dataset.copy);
+        showToast("ID copied", "success");
+        return;
+      }
+      if (t.dataset.pickup) {
         try {
-          await Api.pickupDelivery(pickupId);
-          showToast(`Delivery #${pickupId} picked up`, "success");
-          await loadDeliveries();
+          await Api.pickupDelivery(t.dataset.pickup);
+          showToast("Marked picked up", "success");
+          await loadDispatch();
         } catch (err) {
           handleApiError(err);
         }
       }
-      if (completeId) {
+      if (t.dataset.complete) {
         try {
-          await Api.completeDelivery(completeId);
-          showToast(`Delivery #${completeId} completed`, "success");
-          await loadDeliveries();
+          await Api.completeDelivery(t.dataset.complete);
+          showToast("Delivery completed", "success");
+          await loadDispatch();
         } catch (err) {
           handleApiError(err);
         }
+      }
+      if (t.dataset.trackParcel) {
+        switchPanel("track");
+        setTimeout(() => {
+          fillTrackSelect(t.dataset.trackParcel);
+          $("#t-parcel").value = t.dataset.trackParcel;
+          $("#track-form").requestSubmit();
+        }, 50);
       }
     });
 
     $("#track-form").addEventListener("submit", trackParcel);
+    syncAreaMode();
   }
 
   bindEvents();

@@ -1,6 +1,6 @@
 # Parcel Delivery System
 
-Monorepo for a service-oriented parcel delivery demo: plain HTML/JS client, Spring Cloud Gateway, JWT auth, three domain microservices on **dedicated MongoDB servers**, Auth on MySQL, RabbitMQ, and Redis.
+Monorepo for a service-oriented parcel delivery demo: **ParcelGO dispatch console** (plain HTML/JS), Spring Cloud Gateway, JWT auth, three domain microservices on **dedicated MongoDB servers**, Auth on MySQL, RabbitMQ, and Redis.
 
 ## Architecture
 
@@ -33,7 +33,7 @@ docker compose up --build
 
 | URL | Purpose |
 |-----|---------|
-| http://localhost:3000 | Client UI |
+| http://localhost:3000 | ParcelGO dispatch console (Overview, Parcels, Couriers, Dispatch, Track) |
 | http://localhost:8080 | API Gateway |
 | http://localhost:15672 | RabbitMQ management (`guest` / `guest`) |
 
@@ -209,8 +209,10 @@ Use after `docker compose up --build` when all healthchecks are green.
 ├── parcel-service/          # Parcel CRUD + status consumer :8081 (Mongo)
 ├── courier-service/         # Courier CRUD + availability consumer :8082 (Mongo)
 ├── delivery-service/        # Orchestrator :8083 (Mongo)
-└── client/                  # Plain HTML/JS + Nginx :3000
+└── client/                  # ParcelGO dispatch console (HTML/JS) + Nginx :3000
 ```
+
+The client is an **operator dispatch desk**: pending parcels are assigned from dropdowns (no ObjectId pasting), with Pickup/Complete on the delivery queue and a tracking timeline.
 
 ## Messaging contract
 
@@ -240,7 +242,7 @@ Suggested report sections (maps to the coursework brief):
 | **Member 2 — Courier Service** | | CRUD + availability; consumer on `courier.availability.queue`; API key + Swagger + Dockerfile; owns `mongo-courier` |
 | **Member 3 — Delivery Service** | | Assign / pickup / complete / track; RestClient → Courier; RabbitMQ producer; API key + Swagger + Dockerfile; owns `mongo-delivery` |
 | **Gateway lead** (Member 1 or shared) | | `gateway/`, `auth-service/`, root Docker Compose, CORS, rate limit, API-key injection, MySQL for auth |
-| **Client** (shared or Gateway lead) | | Plain HTML/JS demo of all three domains via Gateway only |
+| **Client** (shared or Gateway lead) | | ParcelGO dispatch console demo of all three domains via Gateway only |
 | **Docs / demo polish** | | README, seed data, smoke checklist, report matrix |
 
 Out of scope for v1 (document as intentional): Eureka/K8s, mobile client, full saga compensation.
