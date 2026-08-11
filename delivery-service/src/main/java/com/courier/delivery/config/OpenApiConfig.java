@@ -18,8 +18,10 @@ public class OpenApiConfig {
 	public OpenAPI deliveryOpenApi() {
 		return new OpenAPI()
 				.info(new Info()
-						.title("Delivery Service API")
-						.description("Delivery orchestration — assign, pickup, complete, track")
+						.title("Delivery Service — orchestration & tracking")
+						.description(
+								"Delivery Service APIs for assigning couriers, advancing pickup/complete, "
+										+ "listing active runs, and tracking by parcel. Protect with X-API-KEY.")
 						.version("v1"))
 				.components(new Components()
 						.addSecuritySchemes(
