@@ -18,8 +18,10 @@ public class OpenApiConfig {
 	public OpenAPI courierOpenApi() {
 		return new OpenAPI()
 				.info(new Info()
-						.title("Courier Service API")
-						.description("Courier profiles and availability")
+						.title("Courier Service — fleet & availability")
+						.description(
+								"Courier Service APIs for fleet profiles, area lookup, and shift availability. "
+										+ "Protect endpoints with the X-API-KEY header.")
 						.version("v1"))
 				.components(new Components()
 						.addSecuritySchemes(
