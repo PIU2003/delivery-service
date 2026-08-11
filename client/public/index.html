@@ -179,7 +179,7 @@
           <h3>Assign delivery</h3>
           <div class="field">
             <label for="d-parcel">Parcel ID</label>
-            <input id="d-parcel" type="number" min="1" required />
+            <input id="d-parcel" type="text" placeholder="Mongo ObjectId from parcels list" required />
           </div>
           <div class="field">
             <label for="d-area">Area</label>
@@ -220,7 +220,7 @@
       <form id="track-form" style="max-width:360px">
         <div class="field">
           <label for="t-parcel">Parcel ID</label>
-          <input id="t-parcel" type="number" min="1" required />
+          <input id="t-parcel" type="text" placeholder="Mongo ObjectId from parcels list" required />
         </div>
         <button type="submit">Track</button>
       </form>

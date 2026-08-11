@@ -11,7 +11,10 @@
 | Courier Service   | 8082 | courier-service     |
 | Delivery Service  | 8083 | delivery-service    |
 | Auth Service      | 8084 | auth-service        |
-| MySQL             | 3306 | mysql               |
+| MySQL (auth only) | 3306 | mysql               |
+| Mongo Parcel      | 27017| mongo-parcel        |
+| Mongo Courier     | 27018| mongo-courier       |
+| Mongo Delivery    | 27019| mongo-delivery      |
 | RabbitMQ AMQP     | 5672 | rabbitmq            |
 | RabbitMQ UI       | 15672| rabbitmq            |
 | Redis             | 6379 | redis               |
@@ -45,6 +48,7 @@ Delivery → Courier sync calls use `COURIER_API_KEY` (= courier service key).
 - Queues:
   - `parcel.status.queue` (Parcel Service consumer)
   - `courier.availability.queue` (Courier Service consumer)
+- Event IDs (`parcelId`, `courierId`, `deliveryId`) are **String** Mongo ObjectIds.
 
 Suggested bindings (implemented by owning services):
 
@@ -55,14 +59,17 @@ Suggested bindings (implemented by owning services):
 
 ## Databases
 
-| Service           | Schema      |
-|-------------------|-------------|
-| Parcel Service    | `parceldb`  |
-| Courier Service   | `courierdb` |
-| Delivery Service  | `deliverydb`|
-| Auth Service      | `authdb`    |
+| Service           | Engine | Database / container | Host (Compass) |
+|-------------------|--------|----------------------|----------------|
+| Parcel Service    | MongoDB | `parceldb` / `mongo-parcel` | `mongodb://localhost:27017` |
+| Courier Service   | MongoDB | `courierdb` / `mongo-courier` | `mongodb://localhost:27018` |
+| Delivery Service  | MongoDB | `deliverydb` / `mongo-delivery` | `mongodb://localhost:27019` |
+| Auth Service      | MySQL   | `authdb` / `mysql` | `localhost:3306` |
 
-MySQL app user: `courier` / `courier` (see `mysql-init/init.sql`).
+MySQL app user (auth only): `courier` / `courier` (see `mysql-init/init.sql`).
+MongoDB has no auth in the local demo.
+
+Document IDs are MongoDB ObjectId hex strings (not numeric).
 
 ## Auth / Gateway
 
@@ -76,7 +83,7 @@ MySQL app user: `courier` / `courier` (see `mysql-init/init.sql`).
 
 ## Demo seed data
 
-Seeders run once when the target table is empty (idempotent on restart with existing data):
+Seeders run once when the target collection/table is empty (idempotent on restart with existing data):
 
 | Service | Seed content |
 |---------|----------------|

@@ -18,6 +18,48 @@ services:
       retries: 10
       start_period: 30s
 
+  mongo-parcel:
+    image: mongo:7
+    container_name: mongo-parcel
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_parcel_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  mongo-courier:
+    image: mongo:7
+    container_name: mongo-courier
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_courier_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  mongo-delivery:
+    image: mongo:7
+    container_name: mongo-delivery
+    ports:
+      - "27019:27017"
+    volumes:
+      - mongo_delivery_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
     container_name: parcel-rabbitmq
@@ -55,10 +97,7 @@ services:
     environment:
       SERVER_PORT: 8081
       API_KEY: ${PARCEL_API_KEY:-parcel-service-key}
-      MYSQL_HOST: mysql
-      MYSQL_PORT: 3306
-      MYSQL_USER: ${MYSQL_USER:-courier}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-courier}
+      MONGO_URI: mongodb://mongo-parcel:27017/parceldb
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: ${RABBITMQ_USER:-guest}
@@ -66,7 +105,7 @@ services:
     ports:
       - "8081:8081"
     depends_on:
-      mysql:
+      mongo-parcel:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -83,10 +122,7 @@ services:
     environment:
       SERVER_PORT: 8082
       API_KEY: ${COURIER_API_KEY:-courier-service-key}
-      MYSQL_HOST: mysql
-      MYSQL_PORT: 3306
-      MYSQL_USER: ${MYSQL_USER:-courier}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-courier}
+      MONGO_URI: mongodb://mongo-courier:27017/courierdb
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: ${RABBITMQ_USER:-guest}
@@ -94,7 +130,7 @@ services:
     ports:
       - "8082:8082"
     depends_on:
-      mysql:
+      mongo-courier:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -113,10 +149,7 @@ services:
       API_KEY: ${DELIVERY_API_KEY:-delivery-service-key}
       COURIER_API_KEY: ${COURIER_API_KEY:-courier-service-key}
       COURIER_SERVICE_URL: http://courier-service:8082
-      MYSQL_HOST: mysql
-      MYSQL_PORT: 3306
-      MYSQL_USER: ${MYSQL_USER:-courier}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-courier}
+      MONGO_URI: mongodb://mongo-delivery:27017/deliverydb
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: ${RABBITMQ_USER:-guest}
@@ -124,7 +157,7 @@ services:
     ports:
       - "8083:8083"
     depends_on:
-      mysql:
+      mongo-delivery:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -218,5 +251,8 @@ services:
 
 volumes:
   mysql_data:
+  mongo_parcel_data:
+  mongo_courier_data:
+  mongo_delivery_data:
   rabbitmq_data:
   redis_data:

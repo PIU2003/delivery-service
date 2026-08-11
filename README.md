@@ -1,6 +1,6 @@
 # Parcel Delivery System
 
-Monorepo for a service-oriented parcel delivery demo: plain HTML/JS client, Spring Cloud Gateway, JWT auth, three domain microservices, MySQL, RabbitMQ, and Redis.
+Monorepo for a service-oriented parcel delivery demo: plain HTML/JS client, Spring Cloud Gateway, JWT auth, three domain microservices on **dedicated MongoDB servers**, Auth on MySQL, RabbitMQ, and Redis.
 
 ## Architecture
 
@@ -15,10 +15,10 @@ flowchart TB
   Delivery -->|"publish routing keys"| RabbitMQ["RabbitMQ"]
   RabbitMQ --> Parcel
   RabbitMQ --> Courier
-  Parcel --> ParcelDB["parceldb"]
-  Courier --> CourierDB["courierdb"]
-  Delivery --> DeliveryDB["deliverydb"]
-  Auth --> AuthDB["authdb"]
+  Parcel --> MongoParcel["mongo-parcel :27017 parceldb"]
+  Courier --> MongoCourier["mongo-courier :27018 courierdb"]
+  Delivery --> MongoDelivery["mongo-delivery :27019 deliverydb"]
+  Auth --> AuthDB["mysql authdb"]
 ```
 
 Shared ports, headers, RabbitMQ names, and package prefixes are documented in [`CONVENTIONS.md`](CONVENTIONS.md).
@@ -39,7 +39,25 @@ docker compose up --build
 
 Optional local overrides: copy [`.env.example`](.env.example) to `.env`.
 
-First boot can take a few minutes while images build and MySQL/services become healthy.
+First boot can take a few minutes while images build and databases/services become healthy.
+
+### MongoDB only (Compass check)
+
+Start the three Mongo servers without the full stack:
+
+```bash
+docker compose up -d mongo-parcel mongo-courier mongo-delivery
+```
+
+Connect in **MongoDB Compass** (no username/password for the local demo):
+
+| Service DB | Compass URI |
+|------------|-------------|
+| Parcel | `mongodb://localhost:27017` |
+| Courier | `mongodb://localhost:27018` |
+| Delivery | `mongodb://localhost:27019` |
+
+After the full stack is up and seeders run, refresh Compass and open `parceldb.parcels`, `courierdb.couriers`, and `deliverydb.deliveries`. Document `_id` values are Mongo ObjectId strings.
 
 ## Demo credentials & seed data
 
@@ -49,7 +67,7 @@ First boot can take a few minutes while images build and MySQL/services become h
 | Demo parcels | 2 × `PENDING` (seeded when `parceldb` is empty) |
 | Demo couriers | Available in `Colombo` (×2) and `Kandy` (×1) |
 
-Assign a delivery with area `Colombo` (or `Kandy`) against a seeded parcel id to exercise the happy path immediately.
+Assign a delivery with area `Colombo` (or `Kandy`) against a seeded parcel **ObjectId** from `GET /api/parcels`.
 
 ## Swagger / OpenAPI
 
@@ -96,14 +114,17 @@ curl -s "http://localhost:8080/api/couriers/available?area=Colombo" \
   -H "Authorization: Bearer $TOKEN" | jq
 ```
 
+Copy a parcel `id` (Mongo ObjectId string) from the list response — used below as `$PARCEL_ID`.
+
 ### 3. Assign → pickup → complete
 
 ```bash
-# Use a PENDING parcel id from the list (e.g. 1)
+PARCEL_ID="<paste-object-id-from-list>"
+
 DELIVERY=$(curl -s -X POST http://localhost:8080/api/deliveries/assign \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"parcelId":1,"area":"Colombo"}')
+  -d "{\"parcelId\":\"$PARCEL_ID\",\"area\":\"Colombo\"}")
 echo "$DELIVERY" | jq
 DELIVERY_ID=$(echo "$DELIVERY" | jq -r .id)
 
@@ -117,14 +138,9 @@ curl -s -X PUT "http://localhost:8080/api/deliveries/$DELIVERY_ID/complete" \
 ### 4. Verify async side effects
 
 ```bash
-# Parcel should be DELIVERED after RabbitMQ consumers process events
-curl -s http://localhost:8080/api/parcels/1/status -H "Authorization: Bearer $TOKEN" | jq
-
-# Assigned courier becomes unavailable on assign; available again after complete
+curl -s "http://localhost:8080/api/parcels/$PARCEL_ID/status" -H "Authorization: Bearer $TOKEN" | jq
 curl -s http://localhost:8080/api/couriers -H "Authorization: Bearer $TOKEN" | jq
-
-# Track by parcel id
-curl -s http://localhost:8080/api/deliveries/track/1 -H "Authorization: Bearer $TOKEN" | jq
+curl -s "http://localhost:8080/api/deliveries/track/$PARCEL_ID" -H "Authorization: Bearer $TOKEN" | jq
 ```
 
 ### 5. Prove direct unauthorized access is blocked
@@ -164,13 +180,14 @@ curl -s -X POST http://localhost:8080/api/couriers \
 
 Use after `docker compose up --build` when all healthchecks are green.
 
-- [ ] **Compose up** — `docker compose ps` shows mysql, rabbitmq, redis, auth, parcel, courier, delivery, gateway, client healthy/running
+- [ ] **Compose up** — `docker compose ps` shows mysql, mongo-parcel, mongo-courier, mongo-delivery, rabbitmq, redis, auth, parcel, courier, delivery, gateway, client healthy/running
+- [ ] **Compass** — connect to `27017` / `27018` / `27019` and see seeded collections after services start
 - [ ] **Client loads** — open http://localhost:3000
 - [ ] **Login** — `admin` / `password` succeeds; JWT stored (UI) or returned (curl)
 - [ ] **Register** (optional) — new user can register and login
-- [ ] **List parcels** — seeded parcels visible via UI or `GET /api/parcels`
+- [ ] **List parcels** — seeded parcels visible via UI or `GET /api/parcels` (string ids)
 - [ ] **List / available couriers** — at least one available in `Colombo`
-- [ ] **Assign delivery** — `POST /api/deliveries/assign` with `{ "parcelId": <id>, "area": "Colombo" }` → status `ASSIGNED`
+- [ ] **Assign delivery** — `POST /api/deliveries/assign` with `{ "parcelId": "<objectId>", "area": "Colombo" }` → status `ASSIGNED`
 - [ ] **Parcel status after assign** — parcel becomes `ASSIGNED` (allow a short delay for RabbitMQ)
 - [ ] **Courier availability after assign** — assigned courier `isAvailable=false`
 - [ ] **Pickup** — `PUT /api/deliveries/{id}/pickup` → delivery `PICKED_UP`, parcel `IN_TRANSIT`
@@ -185,14 +202,14 @@ Use after `docker compose up --build` when all healthchecks are green.
 
 ```
 ├── docker-compose.yml
-├── mysql-init/init.sql
+├── mysql-init/init.sql      # authdb only
 ├── CONVENTIONS.md
-├── gateway/           # Spring Cloud Gateway :8080
-├── auth-service/      # JWT register/login :8084
-├── parcel-service/    # Parcel CRUD + status consumer :8081
-├── courier-service/   # Courier CRUD + availability consumer :8082
-├── delivery-service/  # Orchestrator (assign/pickup/complete/track) :8083
-└── client/            # Plain HTML/JS + Nginx :3000
+├── gateway/                 # Spring Cloud Gateway :8080
+├── auth-service/            # JWT register/login :8084 (MySQL)
+├── parcel-service/          # Parcel CRUD + status consumer :8081 (Mongo)
+├── courier-service/         # Courier CRUD + availability consumer :8082 (Mongo)
+├── delivery-service/        # Orchestrator :8083 (Mongo)
+└── client/                  # Plain HTML/JS + Nginx :3000
 ```
 
 ## Messaging contract
@@ -202,6 +219,7 @@ Use after `docker compose up --build` when all healthchecks are green.
 | Exchange | `delivery.exchange` (topic) |
 | Routing keys | `parcel.assigned`, `parcel.pickedup`, `parcel.delivered` |
 | Queues | `parcel.status.queue`, `courier.availability.queue` |
+| Event IDs | String Mongo ObjectIds |
 
 **Happy path:** Delivery assigns via REST to Courier → publishes `parcel.assigned` → Parcel status `ASSIGNED`, Courier unavailable → pickup publishes `parcel.pickedup` → Parcel `IN_TRANSIT` → complete publishes `parcel.delivered` → Parcel `DELIVERED`, Courier available again.
 
@@ -209,19 +227,19 @@ Use after `docker compose up --build` when all healthchecks are green.
 
 Suggested report sections (maps to the coursework brief):
 
-1. **Architecture** — diagram above; sync (Delivery→Courier REST) vs async (RabbitMQ) rationale; Docker DNS instead of Eureka.
-2. **Per-service breakdown** — Parcel / Courier / Delivery endpoints, entities, consumers/producers.
+1. **Architecture** — diagram above; sync (Delivery→Courier REST) vs async (RabbitMQ) rationale; three dedicated MongoDB servers; Docker DNS instead of Eureka.
+2. **Per-service breakdown** — Parcel / Courier / Delivery endpoints, documents, consumers/producers.
 3. **Security** — OAuth2 JWT (auth + gateway resource server), per-service `X-API-KEY`, CORS, rate limiting (Redis `RequestRateLimiter`).
 4. **Client** — screenshots of login, parcels, couriers, assign/pickup/complete, track.
-5. **Verification** — smoke checklist results and example curl transcript.
-6. **Contribution matrix** — fill names for your group:
+5. **Verification** — smoke checklist results, Compass screenshots, example curl transcript.
+6. **Contribution matrix** — fill names for your group of 3:
 
 | Area | Owner (fill in) | Notes |
 |------|-----------------|--------|
-| **Member 1 — Parcel Service** | | CRUD under `/api/parcels`; consumer on `parcel.status.queue`; API key + Swagger + Dockerfile |
-| **Member 2 — Courier Service** | | CRUD + availability; consumer on `courier.availability.queue`; API key + Swagger + Dockerfile |
-| **Member 3 — Delivery Service** | | Assign / pickup / complete / track; RestClient → Courier; RabbitMQ producer; API key + Swagger + Dockerfile |
-| **Gateway lead** (Member 1 or shared) | | `gateway/`, `auth-service/`, root Docker Compose, CORS, rate limit, API-key injection |
+| **Member 1 — Parcel Service** | | CRUD under `/api/parcels`; consumer on `parcel.status.queue`; API key + Swagger + Dockerfile; owns `mongo-parcel` |
+| **Member 2 — Courier Service** | | CRUD + availability; consumer on `courier.availability.queue`; API key + Swagger + Dockerfile; owns `mongo-courier` |
+| **Member 3 — Delivery Service** | | Assign / pickup / complete / track; RestClient → Courier; RabbitMQ producer; API key + Swagger + Dockerfile; owns `mongo-delivery` |
+| **Gateway lead** (Member 1 or shared) | | `gateway/`, `auth-service/`, root Docker Compose, CORS, rate limit, API-key injection, MySQL for auth |
 | **Client** (shared or Gateway lead) | | Plain HTML/JS demo of all three domains via Gateway only |
 | **Docs / demo polish** | | README, seed data, smoke checklist, report matrix |
 

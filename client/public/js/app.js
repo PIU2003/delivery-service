@@ -215,7 +215,7 @@
 
   async function assignDelivery(event) {
     event.preventDefault();
-    const parcelId = Number($("#d-parcel").value);
+    const parcelId = $("#d-parcel").value.trim();
     const area = $("#d-area").value.trim();
     try {
       const created = await Api.assignDelivery(parcelId, area);
@@ -230,7 +230,7 @@
   // ——— Track ———
   async function trackParcel(event) {
     event.preventDefault();
-    const parcelId = Number($("#t-parcel").value);
+    const parcelId = $("#t-parcel").value.trim();
     const box = $("#track-result");
     try {
       const [delivery, parcelStatus] = await Promise.all([
