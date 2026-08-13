@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -29,35 +30,71 @@ public class DeliveryService {
 		return deliveryRepository.findAll().stream().map(this::toResponse).toList();
 	}
 
+	public List<DeliveryResponse> findActive() {
+		return deliveryRepository.findByStatusInOrderByAssignedAtDesc(ACTIVE_STATUSES).stream()
+				.map(this::toResponse)
+				.toList();
+	}
+
 	public DeliveryResponse findById(String id) {
 		return toResponse(getDelivery(id));
 	}
 
 	public DeliveryResponse trackByParcelId(String parcelId) {
-		List<Delivery> deliveries = deliveryRepository.findByParcelIdOrderByAssignedAtDesc(parcelId);
+		if (!StringUtils.hasText(parcelId)) {
+			throw new IllegalArgumentException("Delivery Service: parcelId is required for tracking");
+		}
+		List<Delivery> deliveries =
+				deliveryRepository.findByParcelIdOrderByAssignedAtDesc(parcelId.trim());
 		if (deliveries.isEmpty()) {
-			throw new ResourceNotFoundException("No delivery found for parcel: " + parcelId);
+			throw new ResourceNotFoundException(
+					"Delivery Service: no delivery run found for parcelId=" + parcelId.trim());
 		}
 		return toResponse(deliveries.getFirst());
 	}
 
 	public DeliveryResponse assign(AssignDeliveryRequest request) {
+		if (request == null) {
+			throw new IllegalArgumentException("Delivery Service: assign request body is required");
+		}
+		String parcelId = request.getParcelId() == null ? "" : request.getParcelId().trim();
+		String area = request.getArea() == null ? "" : request.getArea().trim();
+		if (!StringUtils.hasText(parcelId)) {
+			throw new IllegalArgumentException("Delivery Service: parcelId is required before assign");
+		}
+		if (!StringUtils.hasText(area)) {
+			throw new IllegalArgumentException("Delivery Service: area is required before assign");
+		}
+
 		deliveryRepository
-				.findFirstByParcelIdAndStatusInOrderByAssignedAtDesc(request.getParcelId(), ACTIVE_STATUSES)
+				.findFirstByParcelIdAndStatusInOrderByAssignedAtDesc(parcelId, ACTIVE_STATUSES)
 				.ifPresent(existing -> {
 					throw new IllegalStateException(
-							"Parcel " + request.getParcelId() + " already has an active delivery: " + existing.getId());
+							"Delivery Service: cannot assign — parcelId="
+									+ parcelId
+									+ " already has an active run (deliveryId="
+									+ existing.getId()
+									+ ", status="
+									+ existing.getStatus()
+									+ ")");
 				});
 
-		String area = request.getArea().trim();
 		List<CourierDto> available = courierServiceClient.findAvailable(area);
 		if (available.isEmpty()) {
-			throw new IllegalStateException("No available couriers in area: " + area);
+			throw new IllegalStateException(
+					"Delivery Service: no available couriers in area \""
+							+ area
+							+ "\" — free a courier or choose another area");
 		}
 
 		CourierDto courier = available.getFirst();
+		if (!StringUtils.hasText(courier.getId())) {
+			throw new IllegalStateException(
+					"Delivery Service: courier-service returned a courier without an id for area=" + area);
+		}
+
 		Delivery delivery = Delivery.builder()
-				.parcelId(request.getParcelId())
+				.parcelId(parcelId)
 				.courierId(courier.getId())
 				.area(area)
 				.status(DeliveryStatus.ASSIGNED)
@@ -70,10 +107,19 @@ public class DeliveryService {
 	}
 
 	public DeliveryResponse pickup(String id) {
-		Delivery delivery = getDelivery(id);
+		if (!StringUtils.hasText(id)) {
+			throw new IllegalArgumentException("Delivery Service: deliveryId is required for pickup");
+		}
+		Delivery delivery = getDelivery(id.trim());
 		if (delivery.getStatus() != DeliveryStatus.ASSIGNED) {
 			throw new IllegalStateException(
-					"Delivery " + id + " must be ASSIGNED to pickup (current: " + delivery.getStatus() + ")");
+					"Delivery Service: pickup rejected for deliveryId="
+							+ delivery.getId()
+							+ " — expected status ASSIGNED but was "
+							+ delivery.getStatus()
+							+ " (parcelId="
+							+ delivery.getParcelId()
+							+ ")");
 		}
 		delivery.setStatus(DeliveryStatus.PICKED_UP);
 		delivery.setPickedUpAt(Instant.now());
@@ -83,10 +129,19 @@ public class DeliveryService {
 	}
 
 	public DeliveryResponse complete(String id) {
-		Delivery delivery = getDelivery(id);
+		if (!StringUtils.hasText(id)) {
+			throw new IllegalArgumentException("Delivery Service: deliveryId is required for complete");
+		}
+		Delivery delivery = getDelivery(id.trim());
 		if (delivery.getStatus() != DeliveryStatus.PICKED_UP) {
 			throw new IllegalStateException(
-					"Delivery " + id + " must be PICKED_UP to complete (current: " + delivery.getStatus() + ")");
+					"Delivery Service: complete rejected for deliveryId="
+							+ delivery.getId()
+							+ " — expected status PICKED_UP but was "
+							+ delivery.getStatus()
+							+ " (parcelId="
+							+ delivery.getParcelId()
+							+ ")");
 		}
 		delivery.setStatus(DeliveryStatus.DELIVERED);
 		delivery.setDeliveredAt(Instant.now());
@@ -98,7 +153,8 @@ public class DeliveryService {
 	private Delivery getDelivery(String id) {
 		return deliveryRepository
 				.findById(id)
-				.orElseThrow(() -> new ResourceNotFoundException("Delivery not found: " + id));
+				.orElseThrow(() -> new ResourceNotFoundException(
+						"Delivery Service: delivery not found for id=" + id));
 	}
 
 	private DeliveryResponse toResponse(Delivery delivery) {

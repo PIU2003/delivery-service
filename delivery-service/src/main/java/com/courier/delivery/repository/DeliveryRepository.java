@@ -12,4 +12,6 @@ public interface DeliveryRepository extends MongoRepository<Delivery, String> {
 
 	Optional<Delivery> findFirstByParcelIdAndStatusInOrderByAssignedAtDesc(
 			String parcelId, List<DeliveryStatus> statuses);
+
+	List<Delivery> findByStatusInOrderByAssignedAtDesc(List<DeliveryStatus> statuses);
 }

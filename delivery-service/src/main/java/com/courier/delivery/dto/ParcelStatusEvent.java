@@ -6,7 +6,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Event payload published onto {@code delivery.exchange} for parcel/courier consumers.
+ * Delivery Service orchestration event published onto {@code delivery.exchange}.
+ * Consumed by Parcel Service (status) and Courier Service (availability).
+ * Source of truth for the run: {@code deliveryId}.
  */
 @Data
 @NoArgsConstructor

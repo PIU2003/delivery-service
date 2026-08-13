@@ -22,7 +22,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/deliveries")
 @RequiredArgsConstructor
-@Tag(name = "Deliveries", description = "Delivery orchestration APIs")
+@Tag(
+		name = "Delivery Service — orchestration & tracking",
+		description = "Assign couriers, advance pickup/complete, and track active runs")
 @SecurityRequirement(name = "ApiKey")
 public class DeliveryController {
 
@@ -32,6 +34,14 @@ public class DeliveryController {
 	@Operation(summary = "List all deliveries")
 	public List<DeliveryResponse> list() {
 		return deliveryService.findAll();
+	}
+
+	@GetMapping("/active")
+	@Operation(
+			summary = "List active deliveries",
+			description = "Returns only ASSIGNED and PICKED_UP runs for dispatch queues.")
+	public List<DeliveryResponse> active() {
+		return deliveryService.findActive();
 	}
 
 	@GetMapping("/track/{parcelId}")
