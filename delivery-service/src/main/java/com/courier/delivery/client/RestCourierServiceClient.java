@@ -19,21 +19,5 @@ public class RestCourierServiceClient implements CourierServiceClient {
 
 	private final RestClient courierRestClient;
 
-	@Override
-	public List<CourierDto> findAvailable(String area) {
-		try {
-			List<CourierDto> couriers = courierRestClient
-					.get()
-					.uri(uriBuilder -> uriBuilder
-							.path("/api/couriers/available")
-							.queryParam("area", area)
-							.build())
-					.retrieve()
-					.body(new ParameterizedTypeReference<>() {});
-			return couriers != null ? couriers : Collections.emptyList();
-		} catch (RestClientException ex) {
-			log.error("Failed to fetch available couriers for area={}: {}", area, ex.getMessage());
-			throw new IllegalStateException("Courier service unavailable: " + ex.getMessage(), ex);
-		}
-	}
+	
 }
