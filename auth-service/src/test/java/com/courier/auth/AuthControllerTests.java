@@ -31,7 +31,8 @@ class AuthControllerTests {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.accessToken").isNotEmpty())
 				.andExpect(jsonPath("$.tokenType").value("Bearer"))
-				.andExpect(jsonPath("$.username").value("admin"));
+				.andExpect(jsonPath("$.username").value("admin"))
+				.andExpect(jsonPath("$.role").value("ADMIN"));
 	}
 
 	@Test
@@ -43,7 +44,8 @@ class AuthControllerTests {
 								{"username":"alice","password":"secret1"}
 								"""))
 				.andExpect(status().isCreated())
-				.andExpect(jsonPath("$.accessToken").isNotEmpty());
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andExpect(jsonPath("$.role").value("USER"));
 
 		mockMvc.perform(post("/auth/login")
 						.header("X-API-KEY", "test-auth-key")
@@ -52,7 +54,8 @@ class AuthControllerTests {
 								{"username":"alice","password":"secret1"}
 								"""))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.username").value("alice"));
+				.andExpect(jsonPath("$.username").value("alice"))
+				.andExpect(jsonPath("$.role").value("USER"));
 	}
 
 	@Test

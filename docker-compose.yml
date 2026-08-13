@@ -22,7 +22,7 @@ services:
     image: mongo:7
     container_name: mongo-parcel
     ports:
-      - "27017:27017"
+      - "27016:27017"
     volumes:
       - mongo_parcel_data:/data/db
     healthcheck:
@@ -149,6 +149,8 @@ services:
       API_KEY: ${DELIVERY_API_KEY:-delivery-service-key}
       COURIER_API_KEY: ${COURIER_API_KEY:-courier-service-key}
       COURIER_SERVICE_URL: http://courier-service:8082
+      PARCEL_API_KEY: ${PARCEL_API_KEY:-parcel-service-key}
+      PARCEL_SERVICE_URL: http://parcel-service:8081
       MONGO_URI: mongodb://mongo-delivery:27017/deliverydb
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
@@ -162,6 +164,8 @@ services:
       rabbitmq:
         condition: service_healthy
       courier-service:
+        condition: service_healthy
+      parcel-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8083/actuator/health"]

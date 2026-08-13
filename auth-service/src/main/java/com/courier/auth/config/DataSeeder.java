@@ -1,5 +1,6 @@
 package com.courier.auth.config;
 
+import com.courier.auth.entity.Role;
 import com.courier.auth.entity.User;
 import com.courier.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,14 +24,36 @@ public class DataSeeder implements CommandLineRunner {
 	@Value("${app.seed.password}")
 	private String seedPassword;
 
+	@Value("${app.seed.customer-username:customer}")
+	private String customerUsername;
+
+	@Value("${app.seed.customer-password:password}")
+	private String customerPassword;
+
 	@Override
 	public void run(String... args) {
-		if (!userRepository.existsByUsername(seedUsername)) {
+		userRepository.findByUsername(seedUsername).ifPresentOrElse(user -> {
+			if (user.getRole() != Role.ADMIN) {
+				user.setRole(Role.ADMIN);
+				userRepository.save(user);
+				log.info("Updated seed user '{}' to ADMIN", seedUsername);
+			}
+		}, () -> {
 			userRepository.save(User.builder()
 					.username(seedUsername)
 					.passwordHash(passwordEncoder.encode(seedPassword))
+					.role(Role.ADMIN)
 					.build());
-			log.info("Seeded default user '{}'", seedUsername);
+			log.info("Seeded ADMIN user '{}'", seedUsername);
+		});
+
+		if (!userRepository.existsByUsername(customerUsername)) {
+			userRepository.save(User.builder()
+					.username(customerUsername)
+					.passwordHash(passwordEncoder.encode(customerPassword))
+					.role(Role.USER)
+					.build());
+			log.info("Seeded track-only USER '{}'", customerUsername);
 		}
 	}
 }

@@ -68,21 +68,68 @@
     return `${p.senderName} → ${p.receiverName} · ${p.weight} kg`;
   }
 
-  function showAuth() {
-    $("#auth-view").classList.remove("hidden");
+  function showLanding() {
+    $("#landing-view").classList.remove("hidden");
     $("#app-view").classList.add("hidden");
+    closeAuthModal();
     closeDrawers();
   }
 
+  function openAuthModal() {
+    const modal = $("#auth-modal");
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+  }
+
+  function closeAuthModal() {
+    const modal = $("#auth-modal");
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  function showAuth() {
+    showLanding();
+    openAuthModal();
+  }
+
   function showApp() {
-    $("#auth-view").classList.add("hidden");
+    if (!AuthStore.isAdmin()) {
+      AuthStore.clear();
+      showLanding();
+      return;
+    }
+    $("#landing-view").classList.add("hidden");
     $("#app-view").classList.remove("hidden");
-    $("#user-label").textContent = AuthStore.getUsername() || "user";
+    closeAuthModal();
+    applyRoleUi();
+    $("#user-label").textContent = AuthStore.getUsername() || "admin";
     switchPanel("overview");
   }
 
+  function applyRoleUi() {
+    const badge = $("#role-badge");
+    badge.classList.remove("hidden");
+    badge.textContent = "Ops";
+    badge.classList.add("role-admin");
+    badge.classList.remove("role-user");
+
+    $("#track-panel-sub").textContent =
+      "Follow a parcel’s journey from booking through delivery.";
+    $("#track-select-field")?.classList.remove("hidden");
+    $("#track-input-field")?.classList.add("hidden");
+    const select = $("#t-parcel");
+    const input = $("#t-parcel-input");
+    if (select) select.required = true;
+    if (input) input.required = false;
+  }
+
   function switchPanel(name) {
-    $$(".nav-side button").forEach((btn) => {
+    if (!AuthStore.isAdmin()) {
+      showLanding();
+      return;
+    }
+
+    $$(".app-nav button").forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.panel === name);
     });
     ["overview", "parcels", "couriers", "dispatch", "track"].forEach((id) => {
@@ -96,7 +143,6 @@
         el.classList.add("panel");
       }
     });
-    $("#topbar-title").textContent = PANEL_TITLES[name] || name;
 
     if (name === "overview") loadOverview();
     if (name === "parcels") loadParcels();
@@ -106,14 +152,14 @@
   }
 
   function setAuthMode(mode) {
-    authMode = mode;
-    $("#tab-login").classList.toggle("active", mode === "login");
-    $("#tab-register").classList.toggle("active", mode === "register");
-    $("#auth-submit").textContent = mode === "login" ? "Login" : "Create account";
-    $("#auth-heading").textContent = mode === "login" ? "Welcome back" : "Join the desk";
+    authMode = "login";
+    $("#tab-login").classList.add("active");
+    $("#tab-register").classList.add("hidden");
+    $("#auth-submit").textContent = "Login";
+    $("#auth-heading").textContent = "Operator login";
     $("#auth-sub").textContent =
-      mode === "login" ? "Sign in to open the operations desk." : "Register a new operator account.";
-    $("#auth-password").autocomplete = mode === "login" ? "current-password" : "new-password";
+      "Sign in to open Overview, Parcels, Couriers, and Dispatch. Customers track below without logging in.";
+    $("#auth-password").autocomplete = "current-password";
   }
 
   async function handleAuth(event) {
@@ -123,11 +169,14 @@
     const btn = $("#auth-submit");
     btn.disabled = true;
     try {
-      const res =
-        authMode === "login"
-          ? await Api.login(username, password)
-          : await Api.register(username, password);
-      AuthStore.setSession(res.accessToken, res.username || username);
+      const res = await Api.login(username, password);
+      const role = res.role || "USER";
+      if (role !== "ADMIN") {
+        AuthStore.clear();
+        showToast("This login is for operators only. Track orders below — no login needed.", "error");
+        return;
+      }
+      AuthStore.setSession(res.accessToken, res.username || username, role);
       showToast(`Welcome, ${res.username || username}`, "success");
       showApp();
     } catch (err) {
@@ -137,20 +186,154 @@
     }
   }
 
+  function scrollToTrack() {
+    const el = $("#track-section");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    $("#landing-track-query")?.focus();
+  }
+
+  function resolveTimelineStatus(parcelStatus, delivery, parcel) {
+    const rank = {
+      PENDING: 0,
+      ASSIGNED: 1,
+      IN_TRANSIT: 2,
+      PICKED_UP: 2,
+      DELIVERED: 3,
+    };
+
+    // Prefer delivery timestamps — most reliable for customer tracking UI
+    if (delivery && !delivery.error) {
+      if (delivery.deliveredAt || delivery.status === "DELIVERED") return "DELIVERED";
+      if (delivery.pickedUpAt || delivery.status === "PICKED_UP") return "IN_TRANSIT";
+      if (delivery.assignedAt || delivery.status === "ASSIGNED") return "ASSIGNED";
+    }
+
+    const normalize = (s) => {
+      if (!s || typeof s !== "string") return null;
+      if (s === "PICKED_UP") return "IN_TRANSIT";
+      return s;
+    };
+
+    const candidates = [
+      normalize(parcelStatus && parcelStatus.status),
+      normalize(parcel && parcel.status),
+    ].filter(Boolean);
+
+    let best = "PENDING";
+    let bestRank = 0;
+    candidates.forEach((s) => {
+      const r = rank[s] ?? -1;
+      if (r >= bestRank) {
+        bestRank = r;
+        best = s;
+      }
+    });
+    return best;
+  }
+
+  function renderTrackHtml(parcelId, delivery, parcelStatus, parcel) {
+    const status = resolveTimelineStatus(parcelStatus, delivery, parcel);
+    const steps = [
+      { key: "PENDING", title: "Booked", meta: "Parcel created" },
+      { key: "ASSIGNED", title: "Assigned", meta: delivery.assignedAt ? fmtTime(delivery.assignedAt) : "Waiting" },
+      { key: "IN_TRANSIT", title: "In transit", meta: delivery.pickedUpAt ? fmtTime(delivery.pickedUpAt) : "Waiting" },
+      { key: "DELIVERED", title: "Delivered", meta: delivery.deliveredAt ? fmtTime(delivery.deliveredAt) : "Waiting" },
+    ];
+
+    const order = ["PENDING", "ASSIGNED", "IN_TRANSIT", "DELIVERED"];
+    let currentIdx = order.indexOf(status);
+    if (currentIdx < 0) currentIdx = 0;
+
+    const progressPct = order.length <= 1 ? 100 : (currentIdx / (order.length - 1)) * 100;
+
+    const timeline = steps
+      .map((step, idx) => {
+        let cls = "";
+        if (currentIdx > idx) cls = "done";
+        if (currentIdx === idx) cls = "current done";
+        return `<li class="${cls}"><div class="step-title">${step.title}</div><div class="step-meta">${escapeHtml(step.meta)}</div></li>`;
+      })
+      .join("");
+
+    const courier = delivery.courierId ? courierMap.get(delivery.courierId) : null;
+    const route =
+      parcel && parcel.senderName
+        ? `${escapeHtml(parcel.senderName)} → ${escapeHtml(parcel.receiverName)}`
+        : idChip(parcelId);
+
+    return `
+      <h3 style="margin-bottom:0.75rem">Tracking</h3>
+      <dl class="track-summary">
+        <dt>Parcel</dt><dd>${route}</dd>
+        <dt>Parcel status</dt><dd>${badge(status)}</dd>
+        <dt>Delivery</dt><dd>${
+          delivery.error
+            ? escapeHtml(delivery.error)
+            : `${badge(delivery.status)} · area ${escapeHtml(delivery.area || "—")}`
+        }</dd>
+        <dt>Courier</dt><dd>${
+          delivery.error
+            ? "—"
+            : courier
+              ? escapeHtml(courier.name)
+              : idChip(delivery.courierId)
+        }</dd>
+      </dl>
+      <ul class="timeline" style="--timeline-progress:${progressPct}%">${timeline}</ul>`;
+  }
+
+  async function runPublicTrack(parcelId, resultEl) {
+    const [delivery, parcelStatus, parcel] = await Promise.all([
+      Api.trackDeliveryPublic(parcelId).catch((e) => ({ error: e.message })),
+      Api.getParcelStatusPublic(parcelId).catch((e) => ({ error: e.message })),
+      Api.getParcelPublic(parcelId).catch(() => null),
+    ]);
+
+    if (parcelStatus.error && !parcel) {
+      throw new Error(parcelStatus.error || "Parcel not found");
+    }
+
+    resultEl.innerHTML = renderTrackHtml(parcelId, delivery, parcelStatus, parcel);
+    resultEl.classList.remove("hidden");
+  }
+
   function logout() {
     AuthStore.clear();
-    showAuth();
+    showLanding();
     showToast("Logged out");
   }
 
   function handleApiError(err) {
     if (err.status === 401) {
       AuthStore.clear();
-      showAuth();
+      showLanding();
+      openAuthModal();
       showToast("Session expired — please log in again", "error");
       return;
     }
+    if (err.status === 403) {
+      showToast("Not allowed for your account — track only", "error");
+      return;
+    }
     showToast(err.message || "Request failed", "error");
+  }
+
+  function setTrackParcelId(parcelId) {
+    if (!parcelId) return;
+    if (AuthStore.isAdmin()) {
+      fillTrackSelect(parcelId).then(() => {
+        $("#t-parcel").value = parcelId;
+      });
+    } else {
+      $("#t-parcel-input").value = parcelId;
+    }
+  }
+
+  function getTrackParcelId() {
+    if (AuthStore.isAdmin()) {
+      return ($("#t-parcel").value || "").trim();
+    }
+    return ($("#t-parcel-input").value || "").trim();
   }
 
   function openDrawer(id) {
@@ -184,7 +367,14 @@
 
   function fillPendingParcelSelect(selectedId) {
     const sel = $("#d-parcel");
-    const pending = cacheParcels.filter((p) => p.status === "PENDING");
+    const blockedIds = new Set(
+      cacheDeliveries
+        .filter((d) => d.status === "ASSIGNED" || d.status === "PICKED_UP" || d.status === "DELIVERED")
+        .map((d) => d.parcelId)
+    );
+    const pending = cacheParcels.filter(
+      (p) => p.status === "PENDING" && !blockedIds.has(p.id)
+    );
     const current = selectedId || sel.value;
     sel.innerHTML = `<option value="">Select pending parcel…</option>`;
     pending.forEach((p) => {
@@ -220,6 +410,7 @@
   }
 
   async function fillTrackSelect(selectedId) {
+    if (!AuthStore.isAdmin()) return;
     const sel = $("#t-parcel");
     const current = selectedId || sel.value;
     if (!cacheParcels.length) {
@@ -252,7 +443,12 @@
       ]);
       updateCaches(parcels, couriers, deliveries);
 
-      const pending = parcels.filter((p) => p.status === "PENDING");
+      const blockedIds = new Set(
+        deliveries
+          .filter((d) => d.status === "ASSIGNED" || d.status === "PICKED_UP" || d.status === "DELIVERED")
+          .map((d) => d.parcelId)
+      );
+      const pending = parcels.filter((p) => p.status === "PENDING" && !blockedIds.has(p.id));
       const free = couriers.filter((c) => c.isAvailable);
       const active = deliveries.filter((d) => d.status === "ASSIGNED" || d.status === "PICKED_UP");
 
@@ -444,7 +640,9 @@
       fillPendingParcelSelect();
       fillAreaSelect();
 
-      const sorted = [...deliveries].sort((a, b) => {
+      const sorted = [...deliveries]
+        .filter((d) => d.status === "ASSIGNED" || d.status === "PICKED_UP")
+        .sort((a, b) => {
         const oa = STATUS_ORDER[a.status] ?? 9;
         const ob = STATUS_ORDER[b.status] ?? 9;
         if (oa !== ob) return oa - ob;
@@ -453,6 +651,7 @@
 
       tbody.innerHTML = "";
       if (!sorted.length) {
+        empty.textContent = "No active deliveries. Assign a pending parcel to start a run.";
         empty.classList.remove("hidden");
         return;
       }
@@ -494,20 +693,21 @@
   }
 
   function goAssignParcel(parcelId) {
+    const p = parcelMap.get(parcelId);
+    const blocked = cacheDeliveries.some(
+      (d) =>
+        d.parcelId === parcelId &&
+        (d.status === "ASSIGNED" || d.status === "PICKED_UP" || d.status === "DELIVERED")
+    );
+    if (!p || p.status !== "PENDING" || blocked) {
+      showToast("Only new pending parcels can be assigned", "error");
+      switchPanel("dispatch");
+      return;
+    }
     switchPanel("dispatch");
     setTimeout(() => {
       fillPendingParcelSelect(parcelId);
-      const sel = $("#d-parcel");
-      if (![...sel.options].some((o) => o.value === parcelId)) {
-        const p = parcelMap.get(parcelId);
-        if (p) {
-          const opt = document.createElement("option");
-          opt.value = p.id;
-          opt.textContent = `${parcelLabel(p)} (${p.status})`;
-          sel.appendChild(opt);
-        }
-      }
-      sel.value = parcelId;
+      $("#d-parcel").value = parcelId;
     }, 50);
   }
 
@@ -535,8 +735,11 @@
 
   async function trackParcel(event) {
     event.preventDefault();
-    const parcelId = $("#t-parcel").value.trim();
-    if (!parcelId) return;
+    const parcelId = getTrackParcelId();
+    if (!parcelId) {
+      showToast("Enter a parcel ID", "error");
+      return;
+    }
     const box = $("#track-result");
     try {
       const [delivery, parcelStatus, parcel] = await Promise.all([
@@ -545,55 +748,31 @@
         Api.getParcel(parcelId).catch(() => parcelMap.get(parcelId) || null),
       ]);
 
-      const status = parcelStatus.status || (parcel && parcel.status) || null;
-      const steps = [
-        { key: "PENDING", title: "Booked", meta: "Parcel created" },
-        { key: "ASSIGNED", title: "Assigned", meta: delivery.assignedAt ? fmtTime(delivery.assignedAt) : "Waiting" },
-        { key: "IN_TRANSIT", title: "In transit", meta: delivery.pickedUpAt ? fmtTime(delivery.pickedUpAt) : "Waiting" },
-        { key: "DELIVERED", title: "Delivered", meta: delivery.deliveredAt ? fmtTime(delivery.deliveredAt) : "Waiting" },
-      ];
-
-      const order = ["PENDING", "ASSIGNED", "IN_TRANSIT", "DELIVERED"];
-      let currentIdx = order.indexOf(status);
-      if (status === "PICKED_UP") currentIdx = order.indexOf("IN_TRANSIT");
-
-      const timeline = steps
-        .map((step, idx) => {
-          let cls = "";
-          if (currentIdx > idx) cls = "done";
-          if (currentIdx === idx) cls = "current done";
-          return `<li class="${cls}"><div class="step-title">${step.title}</div><div class="step-meta">${escapeHtml(step.meta)}</div></li>`;
-        })
-        .join("");
-
-      const courier = delivery.courierId ? courierMap.get(delivery.courierId) : null;
-      const route =
-        parcel && parcel.senderName
-          ? `${escapeHtml(parcel.senderName)} → ${escapeHtml(parcel.receiverName)}`
-          : idChip(parcelId);
-
-      box.innerHTML = `
-        <h3 style="margin-bottom:0.75rem">Tracking</h3>
-        <dl class="track-summary">
-          <dt>Parcel</dt><dd>${route}</dd>
-          <dt>Parcel status</dt><dd>${parcelStatus.error ? escapeHtml(parcelStatus.error) : badge(status)}</dd>
-          <dt>Delivery</dt><dd>${
-            delivery.error
-              ? escapeHtml(delivery.error)
-              : `${badge(delivery.status)} · area ${escapeHtml(delivery.area || "—")}`
-          }</dd>
-          <dt>Courier</dt><dd>${
-            delivery.error
-              ? "—"
-              : courier
-                ? escapeHtml(courier.name)
-                : idChip(delivery.courierId)
-          }</dd>
-        </dl>
-        <ul class="timeline">${timeline}</ul>`;
+      box.innerHTML = renderTrackHtml(parcelId, delivery, parcelStatus, parcel);
       box.classList.remove("hidden");
     } catch (err) {
       handleApiError(err);
+    }
+  }
+
+  async function handleLandingTrack(event) {
+    event.preventDefault();
+    const parcelId = $("#landing-track-query").value.trim();
+    if (!parcelId) {
+      showToast("Enter a parcel ID", "error");
+      return;
+    }
+    const box = $("#landing-track-result");
+    const btn = event.submitter || $("#landing-track-form button[type=submit]");
+    if (btn) btn.disabled = true;
+    try {
+      await runPublicTrack(parcelId, box);
+      showToast("Tracking loaded", "success");
+    } catch (err) {
+      box.classList.add("hidden");
+      showToast(err.message || "Could not track this order", "error");
+    } finally {
+      if (btn) btn.disabled = false;
     }
   }
 
@@ -609,9 +788,17 @@
     $("#tab-login").addEventListener("click", () => setAuthMode("login"));
     $("#tab-register").addEventListener("click", () => setAuthMode("register"));
     $("#auth-form").addEventListener("submit", handleAuth);
+    $("#auth-close").addEventListener("click", closeAuthModal);
+    $("#auth-modal").addEventListener("click", (e) => {
+      if (e.target === $("#auth-modal")) closeAuthModal();
+    });
+    $("#nav-login-btn").addEventListener("click", openAuthModal);
+    $("#cta-proceed").addEventListener("click", scrollToTrack);
+    $("#about-login-btn").addEventListener("click", scrollToTrack);
+    $("#landing-track-form").addEventListener("submit", handleLandingTrack);
     $("#logout-btn").addEventListener("click", logout);
 
-    $$(".nav-side button").forEach((btn) => {
+    $$(".app-nav button").forEach((btn) => {
       btn.addEventListener("click", () => switchPanel(btn.dataset.panel));
     });
 
@@ -639,8 +826,7 @@
       if (t.dataset.trackParcel) {
         switchPanel("track");
         setTimeout(() => {
-          fillTrackSelect(t.dataset.trackParcel);
-          $("#t-parcel").value = t.dataset.trackParcel;
+          setTrackParcelId(t.dataset.trackParcel);
         }, 50);
         return;
       }
@@ -721,8 +907,7 @@
       if (t.dataset.trackParcel) {
         switchPanel("track");
         setTimeout(() => {
-          fillTrackSelect(t.dataset.trackParcel);
-          $("#t-parcel").value = t.dataset.trackParcel;
+          setTrackParcelId(t.dataset.trackParcel);
           $("#track-form").requestSubmit();
         }, 50);
       }
@@ -733,9 +918,13 @@
   }
 
   bindEvents();
-  if (AuthStore.isLoggedIn()) {
+  setAuthMode("login");
+  if (AuthStore.isLoggedIn() && AuthStore.isAdmin()) {
     showApp();
   } else {
-    showAuth();
+    if (AuthStore.isLoggedIn() && !AuthStore.isAdmin()) {
+      AuthStore.clear();
+    }
+    showLanding();
   }
 })();

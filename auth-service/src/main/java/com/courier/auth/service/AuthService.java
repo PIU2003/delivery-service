@@ -3,6 +3,7 @@ package com.courier.auth.service;
 import com.courier.auth.dto.AuthResponse;
 import com.courier.auth.dto.LoginRequest;
 import com.courier.auth.dto.RegisterRequest;
+import com.courier.auth.entity.Role;
 import com.courier.auth.entity.User;
 import com.courier.auth.exception.ConflictException;
 import com.courier.auth.exception.UnauthorizedException;
@@ -30,9 +31,10 @@ public class AuthService {
 		User user = User.builder()
 				.username(username)
 				.passwordHash(passwordEncoder.encode(request.getPassword()))
+				.role(Role.USER)
 				.build();
 		userRepository.save(user);
-		return issueToken(username);
+		return issueToken(user);
 	}
 
 	@Transactional(readOnly = true)
@@ -43,15 +45,17 @@ public class AuthService {
 		if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
 			throw new UnauthorizedException("Invalid username or password");
 		}
-		return issueToken(user.getUsername());
+		return issueToken(user);
 	}
 
-	private AuthResponse issueToken(String username) {
+	private AuthResponse issueToken(User user) {
+		Role role = user.getRole() != null ? user.getRole() : Role.USER;
 		return AuthResponse.builder()
-				.accessToken(jwtService.createToken(username))
+				.accessToken(jwtService.createToken(user.getUsername(), role.name()))
 				.tokenType("Bearer")
 				.expiresInSeconds(jwtService.getExpirationSeconds())
-				.username(username)
+				.username(user.getUsername())
+				.role(role.name())
 				.build();
 	}
 }

@@ -3,6 +3,7 @@ package com.courier.parcel.controller;
 import com.courier.parcel.dto.ParcelRequest;
 import com.courier.parcel.dto.ParcelResponse;
 import com.courier.parcel.dto.ParcelStatusResponse;
+import com.courier.parcel.dto.StatusUpdateRequest;
 import com.courier.parcel.service.ParcelService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -53,6 +54,13 @@ public class ParcelController {
 	@Operation(summary = "Update a parcel")
 	public ParcelResponse update(@PathVariable String id, @Valid @RequestBody ParcelRequest request) {
 		return parcelService.update(id, request);
+	}
+
+	@PutMapping("/{id}/status")
+	@Operation(summary = "Update parcel status only (used by delivery orchestration)")
+	public ParcelStatusResponse updateStatus(
+			@PathVariable String id, @Valid @RequestBody StatusUpdateRequest request) {
+		return parcelService.updateStatus(id, request.getStatus());
 	}
 
 	@GetMapping("/{id}/status")

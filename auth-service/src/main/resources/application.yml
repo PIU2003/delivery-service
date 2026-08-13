@@ -26,6 +26,8 @@ app:
   seed:
     username: ${AUTH_SEED_USERNAME:admin}
     password: ${AUTH_SEED_PASSWORD:password}
+    customer-username: ${AUTH_CUSTOMER_USERNAME:customer}
+    customer-password: ${AUTH_CUSTOMER_PASSWORD:password}
 
 springdoc:
   api-docs:

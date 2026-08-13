@@ -3,77 +3,155 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ParcelGO — Dispatch Console</title>
+  <title>ParcelGO — Fast & Reliable Delivery</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
-  <!-- Auth -->
-  <div id="auth-view">
-    <section class="auth-hero" aria-label="Brand">
-      <div class="brand">ParcelGO</div>
-      <p class="tagline">Dispatch console for parcels, couriers, and live delivery runs across your network.</p>
-    </section>
-    <section class="auth-panel">
-      <div class="auth-form-wrap">
-        <h1 id="auth-heading">Welcome back</h1>
-        <p id="auth-sub">Sign in to open the operations desk.</p>
+  <!-- Landing (desktop marketing) -->
+  <div id="landing-view" class="desktop-landing">
+    <div class="landing-shell">
+      <header class="site-nav">
+        <a class="logo" href="#home" id="logo-home">
+          <span class="logo-mark" aria-hidden="true"></span>
+          ParcelGO
+        </a>
+        <nav class="site-links" aria-label="Primary">
+          <a href="#home">Home</a>
+          <a href="#services">Services</a>
+          <a href="#track-section">Track</a>
+        </nav>
+        <button type="button" class="btn-pill" id="nav-login-btn">Log In</button>
+      </header>
 
-        <div class="auth-tabs">
-          <button type="button" id="tab-login" class="active">Login</button>
-          <button type="button" id="tab-register">Register</button>
+      <section class="hero" id="home">
+        <div class="hero-copy">
+          <h1>Trust In The Fastest &amp; Most Reliable Delivery Service</h1>
+          <p>
+            Track your package with an order ID — no login needed.
+            Operators manage parcels, couriers, and dispatch after signing in.
+          </p>
+          <button type="button" class="btn-pill btn-lg" id="cta-proceed">Track Order</button>
         </div>
+        <div class="hero-art">
+          <span class="hero-blob" aria-hidden="true"></span>
+          <span class="hero-balloon" aria-hidden="true"></span>
+          <img src="img/hero-courier.png" alt="Courier on a red scooter delivering a package" />
+        </div>
+      </section>
 
-        <form id="auth-form">
-          <div class="field">
-            <label for="auth-username">Username</label>
-            <input id="auth-username" name="username" autocomplete="username" required minlength="3" />
-          </div>
-          <div class="field">
-            <label for="auth-password">Password</label>
-            <input id="auth-password" name="password" type="password" autocomplete="current-password" required minlength="6" />
-          </div>
-          <button type="submit" id="auth-submit" style="width:100%">Login</button>
-        </form>
+      <section class="features" id="services">
+        <article class="feature-card">
+          <div class="feature-icon fi-fast" aria-hidden="true"></div>
+          <h3>Fast Delivery</h3>
+          <p>Operators assign available riders by area and move parcels from booking to doorstep in clear steps.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon fi-secure" aria-hidden="true"></div>
+          <h3>Secure Service</h3>
+          <p>Customers only use Check Order. Overview, Parcels, Couriers, and Dispatch stay behind operator login.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon fi-world" aria-hidden="true"></div>
+          <h3>Live Tracking</h3>
+          <p>Paste your parcel ID below to follow assign, pickup, and delivery status — no account required.</p>
+        </article>
+      </section>
 
-        <p class="hint">Demo operator: <code>admin</code> / <code>password</code></p>
-      </div>
-    </section>
+      <section class="split-section" id="track-area">
+        <div class="split-copy">
+          <h2>Have Your Package Delivered To Your Doorstep</h2>
+          <p>
+            Customers can only access this tracking section. Enter your parcel ID to
+            follow the status timeline — no login, and no access to overview, parcels, couriers, or dispatch.
+          </p>
+          <button type="button" class="btn-pill" id="about-login-btn">Track my order</button>
+        </div>
+        <div class="track-panel-wrap">
+          <div class="track-panel" id="track-section">
+            <h3>Check Order</h3>
+            <p class="track-panel-sub">Enter your parcel ID to track — no sign-in required.</p>
+            <form id="landing-track-form">
+              <label class="track-label" for="landing-track-query">Order ID</label>
+              <input id="landing-track-query" type="text" placeholder="Paste your parcel ID" required />
+              <button type="submit" class="btn-pill btn-block">Track package</button>
+            </form>
+          </div>
+          <div id="landing-track-result" class="landing-track-result hidden"></div>
+        </div>
+      </section>
+
+      <footer class="site-footer">
+        <div class="logo">
+          <span class="logo-mark" aria-hidden="true"></span>
+          ParcelGO
+        </div>
+        <p>Customers track orders. Operators run the desk.</p>
+      </footer>
+    </div>
   </div>
 
-  <!-- Ops -->
+  <!-- Auth modal -->
+  <div id="auth-modal" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-labelledby="auth-heading">
+      <button type="button" class="modal-close" id="auth-close" aria-label="Close">×</button>
+      <div class="brand-row">
+        <span class="logo-mark" aria-hidden="true"></span>
+        <span class="brand">ParcelGO</span>
+      </div>
+      <h2 id="auth-heading">Operator login</h2>
+      <p id="auth-sub">Sign in to open Overview, Parcels, Couriers, and Dispatch. Customers track below without logging in.</p>
+      <div class="auth-tabs">
+        <button type="button" id="tab-login" class="active">Login</button>
+        <button type="button" id="tab-register" class="hidden">Register</button>
+      </div>
+      <form id="auth-form">
+        <div class="field">
+          <label for="auth-username">Username</label>
+          <input id="auth-username" name="username" autocomplete="username" required minlength="3" />
+        </div>
+        <div class="field">
+          <label for="auth-password">Password</label>
+          <input id="auth-password" name="password" type="password" autocomplete="current-password" required minlength="6" />
+        </div>
+        <button type="submit" id="auth-submit" class="btn-pill btn-block">Login</button>
+      </form>
+      <p class="hint">Ops desk: <code>admin</code> / <code>password</code></p>
+    </div>
+  </div>
+
+  <!-- Ops console -->
   <div id="app-view" class="hidden">
-    <aside class="sidebar">
-      <div class="brand">Parcel<span>GO</span></div>
-      <nav class="nav-side" aria-label="Operations">
+    <header class="app-top">
+      <a class="logo" href="#" id="app-logo">
+        <span class="logo-mark" aria-hidden="true"></span>
+        ParcelGO
+      </a>
+      <nav class="app-nav" aria-label="Operations">
         <button type="button" data-panel="overview" class="active">Overview</button>
         <button type="button" data-panel="parcels">Parcels</button>
         <button type="button" data-panel="couriers">Couriers</button>
         <button type="button" data-panel="dispatch">Dispatch</button>
         <button type="button" data-panel="track">Track</button>
       </nav>
-    </aside>
-
-    <header class="topbar">
-      <div class="topbar-title" id="topbar-title">Overview</div>
       <div class="user-meta">
-        <span>Operator <strong id="user-label"></strong></span>
-        <button type="button" class="secondary sm" id="logout-btn">Log out</button>
+        <span id="role-badge" class="role-badge hidden"></span>
+        <span id="user-label"></span>
+        <button type="button" class="btn-outline sm" id="logout-btn">Log out</button>
       </div>
     </header>
 
     <main class="main">
-      <!-- Overview -->
-      <section id="panel-overview" class="panel">
+      <section id="panel-overview" class="panel admin-only">
         <div class="panel-header">
           <div>
             <h2>Operations overview</h2>
             <p>See what needs attention, then move work through Dispatch.</p>
           </div>
           <div class="panel-actions">
-            <button type="button" class="secondary sm" id="refresh-overview">Refresh</button>
+            <button type="button" class="btn-outline sm" id="refresh-overview">Refresh</button>
           </div>
         </div>
         <div class="stat-grid">
@@ -105,23 +183,22 @@
             <ol>
               <li>Create or pick a pending parcel.</li>
               <li>Confirm a courier is available in that area.</li>
-              <li>Assign on the Dispatch desk, then Pickup → Complete.</li>
+              <li>Assign on Dispatch, then Pickup → Complete.</li>
             </ol>
-            <button type="button" id="goto-dispatch">Open Dispatch</button>
+            <button type="button" class="btn-pill" id="goto-dispatch">Open Dispatch</button>
           </div>
         </div>
       </section>
 
-      <!-- Parcels -->
-      <section id="panel-parcels" class="panel hidden">
+      <section id="panel-parcels" class="panel hidden admin-only">
         <div class="panel-header">
           <div>
             <h2>Parcels</h2>
             <p>Bookings across the network. Assign pending parcels without copying IDs.</p>
           </div>
           <div class="panel-actions">
-            <button type="button" class="secondary sm" id="refresh-parcels">Refresh</button>
-            <button type="button" class="sm" id="open-parcel-drawer">New parcel</button>
+            <button type="button" class="btn-outline sm" id="refresh-parcels">Refresh</button>
+            <button type="button" class="btn-pill sm" id="open-parcel-drawer">New parcel</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -142,16 +219,15 @@
         <p id="parcels-loading" class="loading hidden">Loading parcels…</p>
       </section>
 
-      <!-- Couriers -->
-      <section id="panel-couriers" class="panel hidden">
+      <section id="panel-couriers" class="panel hidden admin-only">
         <div class="panel-header">
           <div>
             <h2>Couriers</h2>
             <p>Fleet availability by area. Toggle status when runners go on or off shift.</p>
           </div>
           <div class="panel-actions">
-            <button type="button" class="secondary sm" id="refresh-couriers">Refresh</button>
-            <button type="button" class="sm" id="open-courier-drawer">New courier</button>
+            <button type="button" class="btn-outline sm" id="refresh-couriers">Refresh</button>
+            <button type="button" class="btn-pill sm" id="open-courier-drawer">New courier</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -173,15 +249,14 @@
         <p id="couriers-loading" class="loading hidden">Loading couriers…</p>
       </section>
 
-      <!-- Dispatch -->
-      <section id="panel-dispatch" class="panel hidden">
+      <section id="panel-dispatch" class="panel hidden admin-only">
         <div class="panel-header">
           <div>
             <h2>Dispatch desk</h2>
             <p>Assign pending parcels, then walk each run through pickup and delivery.</p>
           </div>
           <div class="panel-actions">
-            <button type="button" class="secondary sm" id="refresh-deliveries">Refresh</button>
+            <button type="button" class="btn-outline sm" id="refresh-deliveries">Refresh</button>
           </div>
         </div>
         <div class="dispatch-layout">
@@ -206,7 +281,7 @@
             </div>
             <button type="button" class="ghost sm" id="toggle-area-custom">Use custom area</button>
             <div style="margin-top:1rem">
-              <button type="submit" style="width:100%">Assign courier</button>
+              <button type="submit" class="btn-pill btn-block">Assign courier</button>
             </div>
           </form>
           <div>
@@ -232,35 +307,37 @@
         </div>
       </section>
 
-      <!-- Track -->
       <section id="panel-track" class="panel hidden">
         <div class="panel-header">
           <div>
             <h2>Track</h2>
-            <p>Follow a parcel’s journey from booking through delivery.</p>
+            <p id="track-panel-sub">Follow a parcel’s journey from booking through delivery.</p>
           </div>
         </div>
         <form id="track-form" class="track-box" style="max-width:420px;margin-bottom:1rem">
-          <div class="field">
+          <div class="field admin-only" id="track-select-field">
             <label for="t-parcel">Parcel</label>
-            <select id="t-parcel" required>
+            <select id="t-parcel">
               <option value="">Select parcel…</option>
             </select>
           </div>
-          <button type="submit">Track status</button>
+          <div class="field user-only hidden" id="track-input-field">
+            <label for="t-parcel-input">Order / Parcel ID</label>
+            <input id="t-parcel-input" type="text" placeholder="Paste your parcel ID" autocomplete="off" />
+          </div>
+          <button type="submit" class="btn-pill">Track status</button>
         </form>
         <div id="track-result" class="track-box hidden"></div>
       </section>
     </main>
   </div>
 
-  <!-- Drawers -->
   <div id="drawer-backdrop" class="drawer-backdrop"></div>
 
   <aside id="parcel-drawer" class="drawer" aria-hidden="true">
     <div class="drawer-header">
       <h3>New parcel</h3>
-      <button type="button" class="secondary sm" data-close-drawer>Close</button>
+      <button type="button" class="btn-outline sm" data-close-drawer>Close</button>
     </div>
     <form id="parcel-form">
       <div class="form-row cols-2">
@@ -285,14 +362,14 @@
         <label for="p-weight">Weight (kg)</label>
         <input id="p-weight" type="number" min="0.01" step="0.01" required />
       </div>
-      <button type="submit" style="width:100%">Create parcel</button>
+      <button type="submit" class="btn-pill btn-block">Create parcel</button>
     </form>
   </aside>
 
   <aside id="courier-drawer" class="drawer" aria-hidden="true">
     <div class="drawer-header">
       <h3>New courier</h3>
-      <button type="button" class="secondary sm" data-close-drawer>Close</button>
+      <button type="button" class="btn-outline sm" data-close-drawer>Close</button>
     </div>
     <form id="courier-form">
       <div class="field">
@@ -313,7 +390,7 @@
         <label for="c-area">Current area</label>
         <input id="c-area" required placeholder="Colombo" />
       </div>
-      <button type="submit" style="width:100%">Create courier</button>
+      <button type="submit" class="btn-pill btn-block">Create courier</button>
     </form>
   </aside>
 

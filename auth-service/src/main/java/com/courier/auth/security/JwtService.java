@@ -33,7 +33,7 @@ public class JwtService {
 		this.expirationMinutes = expirationMinutes;
 	}
 
-	public String createToken(String username) {
+	public String createToken(String username, String role) {
 		Instant now = Instant.now();
 		Instant expiresAt = now.plusSeconds(expirationMinutes * 60);
 		JwtClaimsSet claims = JwtClaimsSet.builder()
@@ -41,7 +41,7 @@ public class JwtService {
 				.issuedAt(now)
 				.expiresAt(expiresAt)
 				.subject(username)
-				.claim("roles", List.of("USER"))
+				.claim("roles", List.of(role))
 				.build();
 		JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
 		return jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();

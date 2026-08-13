@@ -15,7 +15,7 @@ flowchart TB
   Delivery -->|"publish routing keys"| RabbitMQ["RabbitMQ"]
   RabbitMQ --> Parcel
   RabbitMQ --> Courier
-  Parcel --> MongoParcel["mongo-parcel :27017 parceldb"]
+  Parcel --> MongoParcel["mongo-parcel :27016 parceldb"]
   Courier --> MongoCourier["mongo-courier :27018 courierdb"]
   Delivery --> MongoDelivery["mongo-delivery :27019 deliverydb"]
   Auth --> AuthDB["mysql authdb"]
@@ -53,7 +53,7 @@ Connect in **MongoDB Compass** (no username/password for the local demo):
 
 | Service DB | Compass URI |
 |------------|-------------|
-| Parcel | `mongodb://localhost:27017` |
+| Parcel | `mongodb://localhost:27016` |
 | Courier | `mongodb://localhost:27018` |
 | Delivery | `mongodb://localhost:27019` |
 
@@ -181,7 +181,7 @@ curl -s -X POST http://localhost:8080/api/couriers \
 Use after `docker compose up --build` when all healthchecks are green.
 
 - [ ] **Compose up** — `docker compose ps` shows mysql, mongo-parcel, mongo-courier, mongo-delivery, rabbitmq, redis, auth, parcel, courier, delivery, gateway, client healthy/running
-- [ ] **Compass** — connect to `27017` / `27018` / `27019` and see seeded collections after services start
+- [ ] **Compass** — connect to `27016` / `27018` / `27019` and see seeded collections after services start
 - [ ] **Client loads** — open http://localhost:3000
 - [ ] **Login** — `admin` / `password` succeeds; JWT stored (UI) or returned (curl)
 - [ ] **Register** (optional) — new user can register and login

@@ -1,6 +1,7 @@
 package com.courier.delivery.config;
 
 import com.courier.delivery.client.CourierServiceClient;
+import com.courier.delivery.client.ParcelServiceClient;
 import com.courier.delivery.dto.CourierDto;
 import com.courier.delivery.entity.Delivery;
 import com.courier.delivery.messaging.DeliveryEventPublisher;
@@ -25,6 +26,14 @@ public class TestBeansConfig {
 				.currentArea(area)
 				.isAvailable(true)
 				.build());
+	}
+
+	@Bean
+	@Primary
+	public ParcelServiceClient stubParcelServiceClient() {
+		return (parcelId, parcelStatus) -> {
+			// no-op in tests
+		};
 	}
 
 	@Bean

@@ -17,4 +17,6 @@ public class ParcelStatusEvent {
 	private String parcelId;
 	private String courierId;
 	private String deliveryId;
+	/** DeliveryStatus name: ASSIGNED, PICKED_UP, DELIVERED */
+	private String status;
 }

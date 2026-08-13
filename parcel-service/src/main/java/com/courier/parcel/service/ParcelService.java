@@ -30,6 +30,11 @@ public class ParcelService {
 		return ParcelStatusResponse.builder().id(parcel.getId()).status(parcel.getStatus()).build();
 	}
 
+	public ParcelStatusResponse updateStatus(String id, ParcelStatus status) {
+		applyStatusFromEvent(id, status);
+		return getStatus(id);
+	}
+
 	public ParcelResponse create(ParcelRequest request) {
 		Parcel parcel = Parcel.builder()
 				.senderName(request.getSenderName())
@@ -65,8 +70,22 @@ public class ParcelService {
 	public void applyStatusFromEvent(String parcelId, ParcelStatus status) {
 		Parcel parcel = parcelRepository.findById(parcelId)
 				.orElseThrow(() -> new ResourceNotFoundException("Parcel not found for event: " + parcelId));
+		// Never move a parcel backwards (e.g. late assigned after delivered)
+		if (parcel.getStatus() != null && rank(parcel.getStatus()) > rank(status)) {
+			return;
+		}
 		parcel.setStatus(status);
 		parcelRepository.save(parcel);
+	}
+
+	private static int rank(ParcelStatus status) {
+		return switch (status) {
+			case PENDING -> 0;
+			case ASSIGNED -> 1;
+			case IN_TRANSIT -> 2;
+			case DELIVERED -> 3;
+			case CANCELLED -> -1;
+		};
 	}
 
 	private Parcel getParcel(String id) {

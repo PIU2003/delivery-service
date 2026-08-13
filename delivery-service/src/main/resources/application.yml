@@ -26,6 +26,9 @@ app:
   courier-service:
     base-url: ${COURIER_SERVICE_URL:http://localhost:8082}
     api-key: ${COURIER_API_KEY:courier-service-key}
+  parcel-service:
+    base-url: ${PARCEL_SERVICE_URL:http://localhost:8081}
+    api-key: ${PARCEL_API_KEY:parcel-service-key}
 
 springdoc:
   api-docs:

@@ -20,4 +20,15 @@ public class RestClientConfig {
 				.defaultHeader(apiKeyHeader, apiKey)
 				.build();
 	}
+
+	@Bean
+	public RestClient parcelRestClient(
+			@Value("${app.parcel-service.base-url}") String baseUrl,
+			@Value("${app.parcel-service.api-key}") String apiKey,
+			@Value("${app.api-key-header:X-API-KEY}") String apiKeyHeader) {
+		return RestClient.builder()
+				.baseUrl(baseUrl)
+				.defaultHeader(apiKeyHeader, apiKey)
+				.build();
+	}
 }

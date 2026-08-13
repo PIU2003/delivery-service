@@ -12,7 +12,7 @@
 | Delivery Service  | 8083 | delivery-service    |
 | Auth Service      | 8084 | auth-service        |
 | MySQL (auth only) | 3306 | mysql               |
-| Mongo Parcel      | 27017| mongo-parcel        |
+| Mongo Parcel      | 27016| mongo-parcel        |
 | Mongo Courier     | 27018| mongo-courier       |
 | Mongo Delivery    | 27019| mongo-delivery      |
 | RabbitMQ AMQP     | 5672 | rabbitmq            |
@@ -61,7 +61,7 @@ Suggested bindings (implemented by owning services):
 
 | Service           | Engine | Database / container | Host (Compass) |
 |-------------------|--------|----------------------|----------------|
-| Parcel Service    | MongoDB | `parceldb` / `mongo-parcel` | `mongodb://localhost:27017` |
+| Parcel Service    | MongoDB | `parceldb` / `mongo-parcel` | `mongodb://localhost:27016` |
 | Courier Service   | MongoDB | `courierdb` / `mongo-courier` | `mongodb://localhost:27018` |
 | Delivery Service  | MongoDB | `deliverydb` / `mongo-delivery` | `mongodb://localhost:27019` |
 | Auth Service      | MySQL   | `authdb` / `mysql` | `localhost:3306` |

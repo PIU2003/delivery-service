@@ -5,6 +5,7 @@
 const API_BASE = "http://localhost:8080";
 const TOKEN_KEY = "parcel_jwt";
 const USER_KEY = "parcel_user";
+const ROLE_KEY = "parcel_role";
 
 const AuthStore = {
   getToken() {
@@ -13,13 +14,21 @@ const AuthStore = {
   getUsername() {
     return localStorage.getItem(USER_KEY);
   },
-  setSession(accessToken, username) {
+  getRole() {
+    return localStorage.getItem(ROLE_KEY) || "USER";
+  },
+  isAdmin() {
+    return this.getRole() === "ADMIN";
+  },
+  setSession(accessToken, username, role) {
     localStorage.setItem(TOKEN_KEY, accessToken);
     localStorage.setItem(USER_KEY, username || "");
+    localStorage.setItem(ROLE_KEY, role || "USER");
   },
   clear() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(ROLE_KEY);
   },
   isLoggedIn() {
     return Boolean(this.getToken());
@@ -96,6 +105,9 @@ const Api = {
   getParcel(id) {
     return apiRequest(`/api/parcels/${id}`);
   },
+  getParcelPublic(id) {
+    return apiRequest(`/api/parcels/${id}`, { auth: false });
+  },
   createParcel(body) {
     return apiRequest("/api/parcels", { method: "POST", body: JSON.stringify(body) });
   },
@@ -104,6 +116,9 @@ const Api = {
   },
   getParcelStatus(id) {
     return apiRequest(`/api/parcels/${id}/status`);
+  },
+  getParcelStatusPublic(id) {
+    return apiRequest(`/api/parcels/${id}/status`, { auth: false });
   },
   deleteParcel(id) {
     return apiRequest(`/api/parcels/${id}`, { method: "DELETE" });
@@ -139,6 +154,9 @@ const Api = {
   },
   trackDelivery(parcelId) {
     return apiRequest(`/api/deliveries/track/${parcelId}`);
+  },
+  trackDeliveryPublic(parcelId) {
+    return apiRequest(`/api/deliveries/track/${parcelId}`, { auth: false });
   },
   assignDelivery(parcelId, area) {
     return apiRequest("/api/deliveries/assign", {
