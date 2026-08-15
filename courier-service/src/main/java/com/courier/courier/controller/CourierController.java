@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/couriers")
 @RequiredArgsConstructor
-@Tag(name = "Couriers", description = "Courier profile and availability APIs")
+@Tag(name = "Courier Service — fleet & availability", description = "Fleet profiles, area lookup, and shift availability")
 @SecurityRequirement(name = "ApiKey")
 public class CourierController {
 
@@ -41,6 +41,14 @@ public class CourierController {
 	@Operation(summary = "List available couriers, optionally filtered by area")
 	public List<CourierResponse> available(@RequestParam(required = false) String area) {
 		return courierService.findAvailable(area);
+	}
+
+	@GetMapping("/by-area/{area}")
+	@Operation(
+			summary = "List couriers by area",
+			description = "Returns all couriers currently based in the given area (available or busy).")
+	public List<CourierResponse> byArea(@PathVariable String area) {
+		return courierService.findByArea(area);
 	}
 
 	@GetMapping("/{id}")

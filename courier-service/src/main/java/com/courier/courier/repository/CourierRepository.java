@@ -9,4 +9,6 @@ public interface CourierRepository extends MongoRepository<Courier, String> {
 	List<Courier> findByIsAvailableTrueAndCurrentAreaIgnoreCase(String currentArea);
 
 	List<Courier> findByIsAvailableTrue();
+
+	List<Courier> findByCurrentAreaIgnoreCase(String currentArea);
 }

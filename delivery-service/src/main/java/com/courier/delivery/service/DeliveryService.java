@@ -47,6 +47,15 @@ public class DeliveryService {
 	public DeliveryResponse trackByParcelId(String parcelId) {
 		if (!StringUtils.hasText(parcelId)) {
 			throw new IllegalArgumentException("Delivery Service: parcelId is required for tracking");
+<<<<<<< HEAD
+=======
+		}
+		List<Delivery> deliveries =
+				deliveryRepository.findByParcelIdOrderByAssignedAtDesc(parcelId.trim());
+		if (deliveries.isEmpty()) {
+			throw new ResourceNotFoundException(
+					"Delivery Service: no delivery run found for parcelId=" + parcelId.trim());
+>>>>>>> fd1c4600ae4d14aceeeda243106fa8924781c0f2
 		}
 		List<Delivery> deliveries =
 				deliveryRepository.findByParcelIdOrderByAssignedAtDesc(parcelId.trim());
@@ -84,6 +93,7 @@ public class DeliveryService {
 									+ ", status="
 									+ existing.getStatus()
 									+ ")");
+<<<<<<< HEAD
 				});
 
 		deliveryRepository.findByParcelIdOrderByAssignedAtDesc(parcelId).stream()
@@ -96,6 +106,8 @@ public class DeliveryService {
 									+ " was already delivered (deliveryId="
 									+ existing.getId()
 									+ ")");
+=======
+>>>>>>> fd1c4600ae4d14aceeeda243106fa8924781c0f2
 				});
 
 		List<CourierDto> available = courierServiceClient.findAvailable(area);
